@@ -47,7 +47,10 @@ public class AppSetIdHooks {
                 new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        param.setResult(ConfigManager.getAppSetId());
+                        String spoofedValue = ConfigManager.getAppSetId();
+                        if (spoofedValue != null) {
+                            param.setResult(spoofedValue);
+                        }
                     }
                 });
         } catch (Exception e) {

@@ -225,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
             loadedConfig = configFileManager.save(
                 this,
                 draft.profile,
-                loadedConfig.getExtraProperties(),
+                draft.extraProperties,
                 draft.selectedPresetId,
                 draft.customMode
             );

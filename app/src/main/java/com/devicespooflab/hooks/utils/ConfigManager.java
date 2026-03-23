@@ -28,6 +28,15 @@ import java.util.Map;
 public class ConfigManager {
 
     public static final String KEY_APPLY_SCREEN_METRICS = "device.apply_screen_metrics";
+    public static final String KEY_SPOOF_IMEI = "device.imei";
+    public static final String KEY_SPOOF_MEID = "device.meid";
+    public static final String KEY_SPOOF_IMSI = "device.imsi";
+    public static final String KEY_SPOOF_ICCID = "device.iccid";
+    public static final String KEY_SPOOF_PHONE_NUMBER = "device.phone_number";
+    public static final String KEY_SPOOF_GAID = "device.gaid";
+    public static final String KEY_SPOOF_GSF_ID = "device.gsf_id";
+    public static final String KEY_SPOOF_MEDIA_DRM_ID = "device.media_drm_id";
+    public static final String KEY_SPOOF_APP_SET_ID = "device.app_set_id";
 
     private static final String[] CONFIG_PATHS = {
         "/data/data/com.spoofmydevice/files/device_profile.conf",
@@ -40,18 +49,6 @@ public class ConfigManager {
     private static Map<String, String> allProperties = null;
     private static boolean usingEmbeddedDefaults = true;
     private static long lastReloadAttemptElapsed = 0L;
-
-    private static String cachedIMEI = null;
-    private static String cachedMEID = null;
-    private static String cachedIMSI = null;
-    private static String cachedICCID = null;
-    private static String cachedPhoneNumber = null;
-    private static String cachedSerial = null;
-    private static String cachedGAID = null;
-    private static String cachedGSFId = null;
-    private static String cachedAndroidId = null;
-    private static byte[] cachedMediaDrmId = null;
-    private static String cachedAppSetId = null;
 
     public static synchronized void init() {
         reload(false);
@@ -333,6 +330,25 @@ public class ConfigManager {
         return value != null && !value.isEmpty();
     }
 
+    private static String getOptionalConfigValue(String key) {
+        String value = getConfigValue(key);
+        if (value == null) {
+            return null;
+        }
+        value = value.trim();
+        return value.isEmpty() ? null : value;
+    }
+
+    private static String getFirstOptionalConfigValue(String... keys) {
+        for (String key : keys) {
+            String value = getOptionalConfigValue(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
     public static String getSystemProperty(String key, String defaultValue) {
         String value = getConfigValue(key);
         return (value != null) ? value : defaultValue;
@@ -411,92 +427,51 @@ public class ConfigManager {
     }
 
     public static String getIMEI() {
-        if (cachedIMEI == null) {
-            cachedIMEI = RandomGenerator.generateIMEI();
-        }
-        return cachedIMEI;
+        return getOptionalConfigValue(KEY_SPOOF_IMEI);
     }
 
     public static String getMEID() {
-        if (cachedMEID == null) {
-            cachedMEID = RandomGenerator.generateMEID();
-        }
-        return cachedMEID;
+        return getOptionalConfigValue(KEY_SPOOF_MEID);
     }
 
     public static String getIMSI() {
-        if (cachedIMSI == null) {
-            cachedIMSI = RandomGenerator.generateIMSI();
-        }
-        return cachedIMSI;
+        return getOptionalConfigValue(KEY_SPOOF_IMSI);
     }
 
     public static String getICCID() {
-        if (cachedICCID == null) {
-            cachedICCID = RandomGenerator.generateICCID();
-        }
-        return cachedICCID;
+        return getOptionalConfigValue(KEY_SPOOF_ICCID);
     }
 
     public static String getPhoneNumber() {
-        if (cachedPhoneNumber == null) {
-            cachedPhoneNumber = RandomGenerator.generatePhoneNumber();
-        }
-        return cachedPhoneNumber;
+        return getOptionalConfigValue(KEY_SPOOF_PHONE_NUMBER);
     }
 
     public static String getSerial() {
-        if (cachedSerial == null) {
-            if (hasConfigValue("ro.serialno")) {
-                cachedSerial = getConfigValue("ro.serialno");
-            } else if (hasConfigValue("ro.boot.serialno")) {
-                cachedSerial = getConfigValue("ro.boot.serialno");
-            } else if (hasConfigValue("SERIAL_NUMBER")) {
-                cachedSerial = getConfigValue("SERIAL_NUMBER");
-            } else {
-                cachedSerial = RandomGenerator.generateSerial();
-            }
-        }
-        return cachedSerial;
+        return getFirstOptionalConfigValue("ro.serialno", "ro.boot.serialno", "SERIAL_NUMBER");
     }
 
     public static String getGAID() {
-        if (cachedGAID == null) {
-            cachedGAID = RandomGenerator.generateGAID();
-        }
-        return cachedGAID;
+        return getOptionalConfigValue(KEY_SPOOF_GAID);
     }
 
     public static String getGSFId() {
-        if (cachedGSFId == null) {
-            cachedGSFId = RandomGenerator.generateGSFId();
-        }
-        return cachedGSFId;
+        return getOptionalConfigValue(KEY_SPOOF_GSF_ID);
     }
 
     public static String getAndroidId() {
-        if (cachedAndroidId == null) {
-            if (hasConfigValue("ANDROID_ID")) {
-                cachedAndroidId = getConfigValue("ANDROID_ID");
-            } else {
-                cachedAndroidId = RandomGenerator.generateAndroidId();
-            }
-        }
-        return cachedAndroidId;
+        return getOptionalConfigValue("ANDROID_ID");
     }
 
     public static byte[] getMediaDrmId() {
-        if (cachedMediaDrmId == null) {
-            cachedMediaDrmId = RandomGenerator.generateMediaDrmId();
+        String hex = getOptionalConfigValue(KEY_SPOOF_MEDIA_DRM_ID);
+        if (hex == null) {
+            return null;
         }
-        return cachedMediaDrmId;
+        return decodeHex(hex);
     }
 
     public static String getAppSetId() {
-        if (cachedAppSetId == null) {
-            cachedAppSetId = RandomGenerator.generateGAID();
-        }
-        return cachedAppSetId;
+        return getOptionalConfigValue(KEY_SPOOF_APP_SET_ID);
     }
 
     public static boolean isConfigAvailable() {
@@ -537,11 +512,7 @@ public class ConfigManager {
     }
 
     public static String getBuildBootloader() {
-        String bootloader = getConfigValue("ro.bootloader");
-        if (bootloader == null || bootloader.isEmpty()) {
-            bootloader = RandomGenerator.generateBootloader();
-        }
-        return bootloader;
+        return getOptionalConfigValue("ro.bootloader");
     }
 
     public static String getBuildId() {
@@ -621,17 +592,25 @@ public class ConfigManager {
     }
 
     private static void resetGeneratedCaches() {
-        cachedIMEI = null;
-        cachedMEID = null;
-        cachedIMSI = null;
-        cachedICCID = null;
-        cachedPhoneNumber = null;
-        cachedSerial = null;
-        cachedGAID = null;
-        cachedGSFId = null;
-        cachedAndroidId = null;
-        cachedMediaDrmId = null;
-        cachedAppSetId = null;
+        // Intentionally empty.
+    }
+
+    private static byte[] decodeHex(String hex) {
+        String normalized = hex.replace(" ", "").replace(":", "");
+        if ((normalized.length() % 2) != 0) {
+            return null;
+        }
+
+        try {
+            byte[] result = new byte[normalized.length() / 2];
+            for (int index = 0; index < normalized.length(); index += 2) {
+                int value = Integer.parseInt(normalized.substring(index, index + 2), 16);
+                result[index / 2] = (byte) value;
+            }
+            return result;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static final class LoadedProperties {

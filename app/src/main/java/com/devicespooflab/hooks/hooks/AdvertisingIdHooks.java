@@ -23,7 +23,10 @@ public class AdvertisingIdHooks {
                         new XC_MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
-                                param.setResult(ConfigManager.getGAID());
+                                String spoofedValue = ConfigManager.getGAID();
+                                if (spoofedValue != null) {
+                                    param.setResult(spoofedValue);
+                                }
                             }
                         });
             } catch (NoSuchMethodError ignored) {
@@ -41,7 +44,10 @@ public class AdvertisingIdHooks {
                         new XC_MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
-                                param.setResult(ConfigManager.getGAID());
+                                String spoofedValue = ConfigManager.getGAID();
+                                if (spoofedValue != null) {
+                                    param.setResult(spoofedValue);
+                                }
                             }
                         });
             } catch (NoSuchMethodError ignored) {

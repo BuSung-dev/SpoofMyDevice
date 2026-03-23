@@ -85,6 +85,9 @@
     <string name="settings_section_identity">Identity</string>
     <string name="settings_section_build_display">Build and display</string>
     <string name="settings_section_network_region">Network and region</string>
+    <string name="settings_section_advanced">Advanced</string>
+    <string name="settings_advanced_summary">Leave these blank to keep the real device values.</string>
+    <string name="settings_generate_random">Generate random value</string>
     <string name="settings_hint_preset">Preset</string>
     <string name="settings_field_brand">Brand</string>
     <string name="settings_field_manufacturer">Manufacturer</string>
@@ -107,6 +110,15 @@
     <string name="settings_field_operator_numeric">Operator numeric</string>
     <string name="settings_field_sim_country_iso">SIM country ISO</string>
     <string name="settings_field_timezone">Timezone</string>
+    <string name="settings_field_imei">IMEI</string>
+    <string name="settings_field_meid">MEID</string>
+    <string name="settings_field_imsi">IMSI</string>
+    <string name="settings_field_iccid">ICCID</string>
+    <string name="settings_field_phone_number">Phone number</string>
+    <string name="settings_field_gaid">Google Advertising ID</string>
+    <string name="settings_field_gsf_id">GSF ID</string>
+    <string name="settings_field_media_drm_id">MediaDrm ID (hex)</string>
+    <string name="settings_field_app_set_id">App Set ID</string>
     <string name="settings_custom_summary">Custom editing based on %1$s - %2$s</string>
     <string name="settings_preset_summary">%1$s - %2$s</string>
     <string name="settings_app_info_title">App Info</string>

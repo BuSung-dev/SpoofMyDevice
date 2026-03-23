@@ -80,6 +80,9 @@
     <string name="settings_section_identity">端末情報</string>
     <string name="settings_section_build_display">ビルドとディスプレイ</string>
     <string name="settings_section_network_region">ネットワークと地域</string>
+    <string name="settings_section_advanced">詳細設定</string>
+    <string name="settings_advanced_summary">空欄のままなら実機の値をそのまま使います。</string>
+    <string name="settings_generate_random">ランダム値を生成</string>
     <string name="settings_hint_preset">プリセット</string>
     <string name="settings_field_brand">ブランド</string>
     <string name="settings_field_manufacturer">メーカー</string>
@@ -102,6 +105,15 @@
     <string name="settings_field_operator_numeric">通信事業者コード</string>
     <string name="settings_field_sim_country_iso">SIM 国 ISO</string>
     <string name="settings_field_timezone">タイムゾーン</string>
+    <string name="settings_field_imei">IMEI</string>
+    <string name="settings_field_meid">MEID</string>
+    <string name="settings_field_imsi">IMSI</string>
+    <string name="settings_field_iccid">ICCID</string>
+    <string name="settings_field_phone_number">電話番号</string>
+    <string name="settings_field_gaid">Google Advertising ID</string>
+    <string name="settings_field_gsf_id">GSF ID</string>
+    <string name="settings_field_media_drm_id">MediaDrm ID (hex)</string>
+    <string name="settings_field_app_set_id">App Set ID</string>
     <string name="settings_custom_summary">%1$s をベースにしたカスタム編集 - %2$s</string>
     <string name="settings_preset_summary">%1$s - %2$s</string>
     <string name="settings_saved">設定を更新しました。</string>

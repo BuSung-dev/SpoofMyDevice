@@ -99,7 +99,10 @@ public class BuildHooks {
                 new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
-                        param.setResult(ConfigManager.getSerial());
+                        String spoofedValue = ConfigManager.getSerial();
+                        if (spoofedValue != null) {
+                            param.setResult(spoofedValue);
+                        }
                     }
                 });
         } catch (NoSuchMethodError ignored) {

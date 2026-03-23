@@ -29,14 +29,20 @@ public class BuildSerialHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getSerial());
+                            String spoofedValue = ConfigManager.getSerial();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
         }
 
         try {
-            XposedHelpers.setStaticObjectField(buildClass, "SERIAL", ConfigManager.getSerial());
+            String spoofedValue = ConfigManager.getSerial();
+            if (spoofedValue != null) {
+                XposedHelpers.setStaticObjectField(buildClass, "SERIAL", spoofedValue);
+            }
         } catch (NoSuchFieldError ignored) {
         }
     }

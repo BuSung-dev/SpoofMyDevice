@@ -42,12 +42,18 @@ public class SettingsHooks {
                             }
 
                             if (ANDROID_ID.equals(name)) {
-                                param.setResult(ConfigManager.getAndroidId());
+                                String spoofedValue = ConfigManager.getAndroidId();
+                                if (spoofedValue != null) {
+                                    param.setResult(spoofedValue);
+                                }
                                 return;
                             }
 
                             if (name.contains("gsf") || GSF_ID.equals(name)) {
-                                param.setResult(ConfigManager.getGSFId());
+                                String spoofedValue = ConfigManager.getGSFId();
+                                if (spoofedValue != null) {
+                                    param.setResult(spoofedValue);
+                                }
                             }
                         }
                     });
@@ -67,12 +73,18 @@ public class SettingsHooks {
                             }
 
                             if (ANDROID_ID.equals(name)) {
-                                param.setResult(ConfigManager.getAndroidId());
+                                String spoofedValue = ConfigManager.getAndroidId();
+                                if (spoofedValue != null) {
+                                    param.setResult(spoofedValue);
+                                }
                                 return;
                             }
 
                             if (name.contains("gsf") || GSF_ID.equals(name)) {
-                                param.setResult(ConfigManager.getGSFId());
+                                String spoofedValue = ConfigManager.getGSFId();
+                                if (spoofedValue != null) {
+                                    param.setResult(spoofedValue);
+                                }
                             }
                         }
                     });

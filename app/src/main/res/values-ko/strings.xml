@@ -83,6 +83,9 @@
     <string name="settings_section_identity">기기 정보</string>
     <string name="settings_section_build_display">빌드 및 디스플레이</string>
     <string name="settings_section_network_region">네트워크 및 지역</string>
+    <string name="settings_section_advanced">고급 설정</string>
+    <string name="settings_advanced_summary">비워 두면 실제 기기 값을 그대로 사용합니다.</string>
+    <string name="settings_generate_random">랜덤 값 생성</string>
     <string name="settings_hint_preset">프리셋</string>
     <string name="settings_field_brand">브랜드</string>
     <string name="settings_field_manufacturer">제조사</string>
@@ -105,6 +108,15 @@
     <string name="settings_field_operator_numeric">통신사 코드</string>
     <string name="settings_field_sim_country_iso">SIM 국가 ISO</string>
     <string name="settings_field_timezone">시간대</string>
+    <string name="settings_field_imei">IMEI</string>
+    <string name="settings_field_meid">MEID</string>
+    <string name="settings_field_imsi">IMSI</string>
+    <string name="settings_field_iccid">ICCID</string>
+    <string name="settings_field_phone_number">전화번호</string>
+    <string name="settings_field_gaid">Google 광고 ID</string>
+    <string name="settings_field_gsf_id">GSF ID</string>
+    <string name="settings_field_media_drm_id">MediaDrm ID (16진수)</string>
+    <string name="settings_field_app_set_id">App Set ID</string>
     <string name="settings_custom_summary">%1$s 기반 커스텀 편집 - %2$s</string>
     <string name="settings_preset_summary">%1$s - %2$s</string>
     <string name="settings_saved">설정이 업데이트되었습니다.</string>

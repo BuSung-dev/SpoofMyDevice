@@ -33,7 +33,10 @@ public class MediaDrmHooks {
                             String propertyName = (String) param.args[0];
 
                             if (DEVICE_UNIQUE_ID.equals(propertyName)) {
-                                param.setResult(ConfigManager.getMediaDrmId());
+                                byte[] spoofedValue = ConfigManager.getMediaDrmId();
+                                if (spoofedValue != null) {
+                                    param.setResult(spoofedValue);
+                                }
                             }
                         }
                     });

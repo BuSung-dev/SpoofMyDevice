@@ -29,7 +29,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getIMEI() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getIMEI();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -40,7 +47,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getIMEI() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getIMEI();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -51,7 +65,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getIMEI() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getIMEI();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -62,7 +83,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getIMEI() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getIMEI();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -73,7 +101,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getMEID() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getMEID();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -84,7 +119,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getMEID() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getMEID();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -95,7 +137,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getIMSI() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getIMSI();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -106,7 +155,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getIMSI() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getIMSI();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -117,7 +173,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getICCID() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getICCID();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -128,7 +191,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getICCID() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getICCID();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -139,7 +209,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getPhoneNumber() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getPhoneNumber();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
@@ -150,7 +227,14 @@ public class TelephonyHooks {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.hasTelephonySupport() ? ConfigManager.getPhoneNumber() : null);
+                            if (!ConfigManager.hasTelephonySupport()) {
+                                param.setResult(null);
+                                return;
+                            }
+                            String spoofedValue = ConfigManager.getPhoneNumber();
+                            if (spoofedValue != null) {
+                                param.setResult(spoofedValue);
+                            }
                         }
                     });
         } catch (NoSuchMethodError ignored) {
