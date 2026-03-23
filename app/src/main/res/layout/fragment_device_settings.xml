@@ -314,7 +314,7 @@
 
             <LinearLayout
                 android:id="@+id/advanced_toggle_header"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clickable="true"
                 android:focusable="true"
@@ -333,11 +333,16 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
                 <ImageView
                     android:id="@+id/advanced_toggle_icon"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginStart="2dp"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_expand_more_24"
                     app:tint="?attr/colorOnBackground" />
@@ -520,6 +525,19 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content" />
                     </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_advanced_clear_all"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end"
+                        android:layout_marginTop="14dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:text="@string/settings_clear_all" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
