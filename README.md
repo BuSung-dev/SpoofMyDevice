@@ -4,6 +4,13 @@ SpoofMyDevice is an LSPosed companion app for building, saving, and applying spo
 
 Instead of manually editing property files, you can pick a preset, switch to a custom profile, save it, and let the module apply those values to scoped apps at runtime.
 
+## Preview
+
+<div>
+<img src="img/KakaoTalk_20260323_151856000.jpg" alt="SpoofMyDevice preview 1" width="220"/>
+<img src="img/KakaoTalk_20260323_151856000_01.jpg" alt="SpoofMyDevice preview 2" width="220"/>
+</div>
+
 ## Features
 
 - Material 3 companion app designed for day-to-day profile management
