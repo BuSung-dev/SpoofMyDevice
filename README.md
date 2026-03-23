@@ -64,10 +64,7 @@ This makes it easy to use a known-good base profile and only tweak the parts tha
 
 The companion app also includes a few quality-of-life settings:
 
-- Light, dark, or system theme
 - English, Korean, or Japanese UI
-- System color support
-- Optional spoofed screen resolution toggle
 
 ## Config File
 
