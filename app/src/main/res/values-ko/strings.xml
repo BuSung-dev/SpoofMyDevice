@@ -120,7 +120,7 @@
     <string name="app_info_links_body">GitHub 프로젝트 링크와 앞으로의 소스 링크가 여기에 표시됩니다.</string>
     <string name="app_info_github_button">GitHub 열기</string>
     <string name="app_info_github_title">GitHub</string>
-    <string name="app_info_github_summary">github.com</string>
+    <string name="app_info_github_summary">github.com/BuSung-dev/SpoofMyDevice</string>
     <string name="app_info_link_failed">브라우저를 열 수 없습니다.</string>
     <string name="real_info_build_title">런타임 빌드 값</string>
     <string name="real_info_runtime_title">런타임 디스플레이 및 식별자</string>

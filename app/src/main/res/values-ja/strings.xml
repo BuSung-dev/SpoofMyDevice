@@ -117,7 +117,7 @@
     <string name="app_info_links_body">GitHub プロジェクトリンクと今後のソースリンクがここに表示されます。</string>
     <string name="app_info_github_button">GitHub を開く</string>
     <string name="app_info_github_title">GitHub</string>
-    <string name="app_info_github_summary">github.com</string>
+    <string name="app_info_github_summary">github.com/BuSung-dev/SpoofMyDevice</string>
     <string name="app_info_link_failed">ブラウザを開けませんでした。</string>
     <string name="real_info_build_title">ランタイムビルド値</string>
     <string name="real_info_runtime_title">ランタイム表示と識別子</string>

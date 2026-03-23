@@ -125,7 +125,7 @@
     <string name="app_info_links_body">GitHub project link and future source links will appear here.</string>
     <string name="app_info_github_button">Open GitHub</string>
     <string name="app_info_github_title">GitHub</string>
-    <string name="app_info_github_summary">github.com</string>
+    <string name="app_info_github_summary">github.com/BuSung-dev/SpoofMyDevice</string>
     <string name="app_info_link_failed">Unable to open the browser.</string>
     <string name="real_info_button_helper">Use App Info to compare the current runtime values against the saved spoof target.</string>
     <string name="real_info_build_title">Runtime build values</string>

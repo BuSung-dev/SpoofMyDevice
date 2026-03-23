@@ -17,7 +17,7 @@ import com.google.android.material.color.MaterialColors;
 
 public class RealInfoActivity extends AppCompatActivity {
 
-    private static final String GITHUB_URL = "https://github.com/";
+    private static final String GITHUB_URL = "https://github.com/BuSung-dev/SpoofMyDevice";
 
     private ActivityRealInfoBinding binding;
 
