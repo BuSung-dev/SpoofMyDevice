@@ -1,0 +1,22 @@
+# Built files
+*.apk
+*.aab
+*.dex
+*.class
+/build/
+/app/build/
+
+# Gradle
+.gradle/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime config
+device_profile.conf

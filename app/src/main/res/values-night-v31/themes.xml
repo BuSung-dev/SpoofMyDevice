@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DeviceSpoofLab.Dynamic" parent="Theme.DeviceSpoofLab">
+        <item name="colorPrimary">@android:color/system_accent1_300</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorPrimaryContainer">@android:color/system_accent1_700</item>
+        <item name="colorOnPrimaryContainer">@android:color/white</item>
+        <item name="colorSecondary">@android:color/system_accent2_300</item>
+        <item name="colorOnSecondary">@android:color/black</item>
+        <item name="colorSecondaryContainer">@android:color/system_accent2_700</item>
+        <item name="colorOnSecondaryContainer">@android:color/white</item>
+        <item name="colorTertiary">@android:color/system_accent3_300</item>
+        <item name="colorOnTertiary">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/system_neutral1_900</item>
+        <item name="colorOnBackground">@android:color/system_neutral1_100</item>
+        <item name="colorSurface">@android:color/system_neutral1_800</item>
+        <item name="colorOnSurface">@android:color/system_neutral1_100</item>
+        <item name="colorSurfaceVariant">@android:color/system_neutral2_700</item>
+        <item name="colorOnSurfaceVariant">@android:color/system_neutral2_200</item>
+        <item name="colorOutline">@android:color/system_neutral2_400</item>
+        <item name="colorOutlineVariant">@android:color/system_neutral2_700</item>
+        <item name="android:navigationBarColor">@android:color/system_neutral1_900</item>
+    </style>
+</resources>

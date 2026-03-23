@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DeviceSpoofLab" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/dsl_primary</item>
+        <item name="colorOnPrimary">@color/dsl_on_primary</item>
+        <item name="colorPrimaryContainer">@color/dsl_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/dsl_on_primary_container</item>
+        <item name="colorSecondary">@color/dsl_secondary</item>
+        <item name="colorOnSecondary">@color/dsl_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/dsl_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/dsl_on_secondary_container</item>
+        <item name="colorTertiary">@color/dsl_tertiary</item>
+        <item name="colorOnTertiary">@color/dsl_on_tertiary</item>
+        <item name="android:colorBackground">@color/dsl_background</item>
+        <item name="colorOnBackground">@color/dsl_on_background</item>
+        <item name="colorSurface">@color/dsl_surface</item>
+        <item name="colorOnSurface">@color/dsl_on_surface</item>
+        <item name="colorSurfaceVariant">@color/dsl_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/dsl_on_surface_variant</item>
+        <item name="colorOutline">@color/dsl_outline</item>
+        <item name="colorOutlineVariant">@color/dsl_outline_variant</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/dsl_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <style name="Theme.DeviceSpoofLab.Blue" parent="Theme.DeviceSpoofLab">
+        <item name="colorPrimary">@color/dsl_blue_primary</item>
+        <item name="colorOnPrimary">@color/dsl_blue_on_primary</item>
+        <item name="colorPrimaryContainer">@color/dsl_blue_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/dsl_blue_on_primary_container</item>
+        <item name="colorSecondary">@color/dsl_blue_secondary</item>
+        <item name="colorOnSecondary">@color/dsl_blue_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/dsl_blue_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/dsl_blue_on_secondary_container</item>
+        <item name="colorTertiary">@color/dsl_blue_tertiary</item>
+        <item name="colorOnTertiary">@color/dsl_blue_on_tertiary</item>
+        <item name="android:colorBackground">@color/dsl_blue_background</item>
+        <item name="colorOnBackground">@color/dsl_blue_on_background</item>
+        <item name="colorSurface">@color/dsl_blue_surface</item>
+        <item name="colorOnSurface">@color/dsl_blue_on_surface</item>
+        <item name="colorSurfaceVariant">@color/dsl_blue_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/dsl_blue_on_surface_variant</item>
+        <item name="colorOutline">@color/dsl_blue_outline</item>
+        <item name="colorOutlineVariant">@color/dsl_blue_outline_variant</item>
+        <item name="android:navigationBarColor">@color/dsl_blue_background</item>
+    </style>
+
+    <style name="Theme.DeviceSpoofLab.Rose" parent="Theme.DeviceSpoofLab">
+        <item name="colorPrimary">@color/dsl_rose_primary</item>
+        <item name="colorOnPrimary">@color/dsl_rose_on_primary</item>
+        <item name="colorPrimaryContainer">@color/dsl_rose_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/dsl_rose_on_primary_container</item>
+        <item name="colorSecondary">@color/dsl_rose_secondary</item>
+        <item name="colorOnSecondary">@color/dsl_rose_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/dsl_rose_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/dsl_rose_on_secondary_container</item>
+        <item name="colorTertiary">@color/dsl_rose_tertiary</item>
+        <item name="colorOnTertiary">@color/dsl_rose_on_tertiary</item>
+        <item name="android:colorBackground">@color/dsl_rose_background</item>
+        <item name="colorOnBackground">@color/dsl_rose_on_background</item>
+        <item name="colorSurface">@color/dsl_rose_surface</item>
+        <item name="colorOnSurface">@color/dsl_rose_on_surface</item>
+        <item name="colorSurfaceVariant">@color/dsl_rose_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/dsl_rose_on_surface_variant</item>
+        <item name="colorOutline">@color/dsl_rose_outline</item>
+        <item name="colorOutlineVariant">@color/dsl_rose_outline_variant</item>
+        <item name="android:navigationBarColor">@color/dsl_rose_background</item>
+    </style>
+
+    <style name="Theme.DeviceSpoofLab.Amber" parent="Theme.DeviceSpoofLab">
+        <item name="colorPrimary">@color/dsl_amber_primary</item>
+        <item name="colorOnPrimary">@color/dsl_amber_on_primary</item>
+        <item name="colorPrimaryContainer">@color/dsl_amber_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/dsl_amber_on_primary_container</item>
+        <item name="colorSecondary">@color/dsl_amber_secondary</item>
+        <item name="colorOnSecondary">@color/dsl_amber_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/dsl_amber_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/dsl_amber_on_secondary_container</item>
+        <item name="colorTertiary">@color/dsl_amber_tertiary</item>
+        <item name="colorOnTertiary">@color/dsl_amber_on_tertiary</item>
+        <item name="android:colorBackground">@color/dsl_amber_background</item>
+        <item name="colorOnBackground">@color/dsl_amber_on_background</item>
+        <item name="colorSurface">@color/dsl_amber_surface</item>
+        <item name="colorOnSurface">@color/dsl_amber_on_surface</item>
+        <item name="colorSurfaceVariant">@color/dsl_amber_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/dsl_amber_on_surface_variant</item>
+        <item name="colorOutline">@color/dsl_amber_outline</item>
+        <item name="colorOutlineVariant">@color/dsl_amber_outline_variant</item>
+        <item name="android:navigationBarColor">@color/dsl_amber_background</item>
+    </style>
+
+    <style name="Theme.DeviceSpoofLab.Dynamic" parent="Theme.DeviceSpoofLab" />
+</resources>
