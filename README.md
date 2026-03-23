@@ -8,7 +8,8 @@ Instead of manually editing property files, you can pick a preset, switch to a c
 
 <div>
 <img src="img/KakaoTalk_20260323_151856000.jpg" alt="SpoofMyDevice preview 1" width="220"/>
-<img src="img/KakaoTalk_20260323_151856000_01.jpg" alt="SpoofMyDevice preview 2" width="220"/>
+<img src="img/KakaoTalk_20260323_152603549.jpg" alt="SpoofMyDevice preview 2" width="220"/>
+<img src="img/KakaoTalk_20260323_151856000_01.jpg" alt="SpoofMyDevice preview 3" width="220"/>
 </div>
 
 ## Features
