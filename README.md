@@ -1,6 +1,6 @@
 # SpoofMyDevice
 
-SpoofMyDevice is an LSPosed companion app for building, saving, and applying spoofed Android device profiles with a clean Material 3 interface.
+SpoofMyDevice is an LSPosed companion app for building, saving, and applying spoofed Android device profiles.
 
 Instead of manually editing property files, you can pick a preset, switch to a custom profile, save it, and let the module apply those values to scoped apps at runtime.
 
