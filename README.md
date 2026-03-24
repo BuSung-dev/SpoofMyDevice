@@ -89,7 +89,6 @@ app/build/outputs/apk/debug/app-debug.apk
 ## Notes
 
 - The current install package name is `com.spoofmydevice`
-- If you change package name between builds, Android treats it as a separate app install
 - Some apps cache device information aggressively, so a force stop may be required after saving
 
 ## Disclaimer
