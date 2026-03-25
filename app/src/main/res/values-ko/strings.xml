@@ -86,6 +86,7 @@
     <string name="settings_section_advanced">고급 설정</string>
     <string name="settings_advanced_summary">비워 두면 실제 기기 값을 그대로 사용합니다.</string>
     <string name="settings_generate_random">랜덤 값 생성</string>
+    <string name="settings_clear_all">전체 지우기</string>
     <string name="settings_hint_preset">프리셋</string>
     <string name="settings_field_brand">브랜드</string>
     <string name="settings_field_manufacturer">제조사</string>

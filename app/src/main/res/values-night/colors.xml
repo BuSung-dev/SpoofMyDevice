@@ -18,6 +18,8 @@
     <color name="dsl_on_surface_variant">#C1C8C3</color>
     <color name="dsl_outline">#8B938E</color>
     <color name="dsl_outline_variant">#414844</color>
+    <color name="dsl_nav_chrome">#1D2120</color>
+    <color name="dsl_nav_indicator">#313634</color>
     <color name="dsl_success">#70DA9A</color>
     <color name="dsl_warning">#F0B372</color>
     <color name="dsl_active_container">#0F4A45</color>

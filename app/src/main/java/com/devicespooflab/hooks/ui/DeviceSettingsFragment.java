@@ -197,6 +197,8 @@ public class DeviceSettingsFragment extends Fragment {
             }
         });
 
+        binding.buttonAdvancedClearAll.setOnClickListener(v -> clearAdvancedFields());
+
         binding.layoutAdvancedImei.setEndIconOnClickListener(v ->
             setText(binding.inputAdvancedImei, RandomGenerator.generateIMEI())
         );
@@ -397,6 +399,18 @@ public class DeviceSettingsFragment extends Fragment {
         putOptional(extraProperties, ConfigManager.KEY_SPOOF_MEDIA_DRM_ID, text(binding.inputAdvancedMediaDrmId));
         putOptional(extraProperties, ConfigManager.KEY_SPOOF_APP_SET_ID, text(binding.inputAdvancedAppSetId));
         return extraProperties;
+    }
+
+    private void clearAdvancedFields() {
+        setText(binding.inputAdvancedImei, "");
+        setText(binding.inputAdvancedMeid, "");
+        setText(binding.inputAdvancedImsi, "");
+        setText(binding.inputAdvancedIccid, "");
+        setText(binding.inputAdvancedPhoneNumber, "");
+        setText(binding.inputAdvancedGaid, "");
+        setText(binding.inputAdvancedGsfId, "");
+        setText(binding.inputAdvancedMediaDrmId, "");
+        setText(binding.inputAdvancedAppSetId, "");
     }
 
     private void putOptional(Map<String, String> target, String key, String value) {

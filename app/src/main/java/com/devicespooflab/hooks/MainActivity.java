@@ -2,15 +2,21 @@ package com.devicespooflab.hooks;
 
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ScrollView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.graphics.ColorUtils;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.devicespooflab.hooks.data.AppSettingsStore;
 import com.devicespooflab.hooks.data.ConfigFileManager;
@@ -21,7 +27,10 @@ import com.devicespooflab.hooks.ui.AppSettingsFragment;
 import com.devicespooflab.hooks.ui.DeviceSettingsFragment;
 import com.devicespooflab.hooks.ui.HomeFragment;
 import com.devicespooflab.hooks.utils.ConfigManager;
+import com.google.android.material.appbar.AppBarLayout;
+import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.color.MaterialColors;
+import com.google.android.material.navigation.NavigationBarView;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.LinkedHashMap;
@@ -43,6 +52,9 @@ public class MainActivity extends AppCompatActivity {
     private HomeFragment homeFragment;
     private DeviceSettingsFragment settingsFragment;
     private AppSettingsFragment appSettingsFragment;
+    private boolean tabletNavigation;
+    private boolean syncingNavigationSelection;
+    private int selectedNavigationItemId = R.id.navigation_home;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,9 +63,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        setSupportActionBar(binding.topAppBar);
-        configureTopBarAppearance();
-        configureBottomNavigationAppearance();
+        tabletNavigation = isTabletNavigation();
+        configureNavigationMode();
+        configureNavigationAppearance();
 
         configFileManager = new ConfigFileManager();
         presets = new DevicePresetCatalog().load(this);
@@ -91,41 +103,28 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putInt(STATE_SELECTED_TAB, binding.bottomNavigation.getSelectedItemId());
+        outState.putInt(STATE_SELECTED_TAB, selectedNavigationItemId);
     }
 
-    private void configureBottomNavigationAppearance() {
-        int backgroundColor = MaterialColors.getColor(
-            binding.bottomNavigation,
-            android.R.attr.colorBackground
-        );
-        int onBackgroundColor = MaterialColors.getColor(
-            binding.bottomNavigation,
-            com.google.android.material.R.attr.colorOnBackground
-        );
-        int navigationBarColor = ColorUtils.blendARGB(backgroundColor, onBackgroundColor, 0.08f);
-        int indicatorColor = ColorUtils.blendARGB(backgroundColor, onBackgroundColor, 0.18f);
+    private void configureNavigationMode() {
+        binding.navigationRail.setVisibility(tabletNavigation ? View.VISIBLE : View.GONE);
+        binding.bottomNavigation.setVisibility(tabletNavigation ? View.GONE : View.VISIBLE);
+        binding.navigationRail.setLabelVisibilityMode(NavigationBarView.LABEL_VISIBILITY_SELECTED);
+        binding.bottomNavigation.setLabelVisibilityMode(NavigationBarView.LABEL_VISIBILITY_SELECTED);
+        updateSaveFabPosition();
+    }
+
+    private void configureNavigationAppearance() {
+        int navigationBarColor = resolveChromeColor();
+        int indicatorColor = resolveIndicatorColor();
+        int railIndicatorColor = resolveIndicatorColor();
 
         binding.bottomNavigation.setElevation(0f);
         binding.bottomNavigation.setBackgroundTintList(ColorStateList.valueOf(navigationBarColor));
         binding.bottomNavigation.setItemActiveIndicatorColor(ColorStateList.valueOf(indicatorColor));
-    }
-
-    private void configureTopBarAppearance() {
-        int backgroundColor = MaterialColors.getColor(
-            binding.topAppBar,
-            android.R.attr.colorBackground
-        );
-        int onBackgroundColor = MaterialColors.getColor(
-            binding.topAppBar,
-            com.google.android.material.R.attr.colorOnBackground
-        );
-        int topBarColor = ColorUtils.blendARGB(backgroundColor, onBackgroundColor, 0.08f);
-
-        binding.topAppBarLayout.setBackgroundTintList(ColorStateList.valueOf(topBarColor));
-        binding.topAppBarLayout.setLiftOnScroll(false);
-        binding.topAppBar.setElevation(0f);
-        binding.topAppBar.setBackgroundTintList(ColorStateList.valueOf(topBarColor));
+        binding.navigationRail.setElevation(0f);
+        binding.navigationRail.setBackgroundColor(Color.TRANSPARENT);
+        binding.navigationRail.setItemActiveIndicatorColor(ColorStateList.valueOf(railIndicatorColor));
     }
 
     private ConfigFileManager.LoadedConfig loadInitialConfig() {
@@ -167,39 +166,65 @@ public class MainActivity extends AppCompatActivity {
                 .hide(appSettingsFragment)
                 .commitNow();
         }
+        applyFragmentHeaderChrome(homeFragment);
+        applyFragmentHeaderChrome(settingsFragment);
+        applyFragmentHeaderChrome(appSettingsFragment);
     }
 
     private void setupBottomNavigation(Bundle savedInstanceState) {
         binding.bottomNavigation.setOnItemSelectedListener(item -> {
-            switchTab(item.getItemId());
+            if (syncingNavigationSelection) {
+                return true;
+            }
+            handleNavigationSelection(item.getItemId());
+            return true;
+        });
+        binding.navigationRail.setOnItemSelectedListener(item -> {
+            if (syncingNavigationSelection) {
+                return true;
+            }
+            handleNavigationSelection(item.getItemId());
             return true;
         });
 
-        int initialTab = savedInstanceState == null
+        selectedNavigationItemId = savedInstanceState == null
             ? R.id.navigation_home
             : savedInstanceState.getInt(STATE_SELECTED_TAB, R.id.navigation_home);
-        binding.bottomNavigation.setSelectedItemId(initialTab);
-        switchTab(initialTab);
+        syncNavigationSelection();
+        switchTab(selectedNavigationItemId);
+    }
+
+    private void handleNavigationSelection(int itemId) {
+        selectedNavigationItemId = itemId;
+        syncNavigationSelection();
+        switchTab(itemId);
+    }
+
+    private void syncNavigationSelection() {
+        syncingNavigationSelection = true;
+        if (binding.bottomNavigation.getSelectedItemId() != selectedNavigationItemId) {
+            binding.bottomNavigation.setSelectedItemId(selectedNavigationItemId);
+        }
+        if (binding.navigationRail.getSelectedItemId() != selectedNavigationItemId) {
+            binding.navigationRail.setSelectedItemId(selectedNavigationItemId);
+        }
+        syncingNavigationSelection = false;
     }
 
     private void switchTab(int itemId) {
         Fragment target;
-        String title;
         boolean showSave;
 
         if (itemId == R.id.navigation_settings) {
             target = settingsFragment;
-            title = getString(R.string.toolbar_settings);
             showSave = true;
             settingsFragment.refreshFromHost(false);
         } else if (itemId == R.id.navigation_app_settings) {
             target = appSettingsFragment;
-            title = getString(R.string.toolbar_app_settings);
             showSave = false;
             appSettingsFragment.refreshFromHost();
         } else {
             target = homeFragment;
-            title = getString(R.string.toolbar_home);
             showSave = false;
             homeFragment.refresh();
         }
@@ -209,10 +234,11 @@ public class MainActivity extends AppCompatActivity {
             .hide(settingsFragment)
             .hide(appSettingsFragment)
             .show(target)
-            .commit();
+            .commitNow();
 
-        binding.topAppBar.setTitle(title);
         binding.saveFab.setVisibility(showSave ? View.VISIBLE : View.GONE);
+        applyFragmentHeaderChrome(target);
+        binding.fragmentContainer.post(() -> scrollFragmentToTop(target));
     }
 
     private void saveFromEditor() {
@@ -272,5 +298,102 @@ public class MainActivity extends AppCompatActivity {
             Snackbar.make(binding.getRoot(), getString(R.string.save_failed) + " " + exception.getMessage(), Snackbar.LENGTH_LONG).show();
             return false;
         }
+    }
+
+    private boolean isTabletNavigation() {
+        return getResources().getConfiguration().smallestScreenWidthDp >= 600;
+    }
+
+    private void updateSaveFabPosition() {
+        ViewGroup.LayoutParams rawLayoutParams = binding.saveFab.getLayoutParams();
+        if (!(rawLayoutParams instanceof CoordinatorLayout.LayoutParams)) {
+            return;
+        }
+        CoordinatorLayout.LayoutParams layoutParams = (CoordinatorLayout.LayoutParams) rawLayoutParams;
+        int density = getResources().getDisplayMetrics().densityDpi;
+        int marginEnd = Math.round(20f * density / 160f);
+        int marginBottom = Math.round((tabletNavigation ? 24f : 92f) * density / 160f);
+        layoutParams.setMarginEnd(marginEnd);
+        layoutParams.bottomMargin = marginBottom;
+        binding.saveFab.setLayoutParams(layoutParams);
+    }
+
+    private void scrollFragmentToTop(Fragment fragment) {
+        if (fragment == null || fragment.getView() == null) {
+            return;
+        }
+        expandFirstAppBar(fragment.getView());
+        scrollViewToTop(fragment.getView());
+    }
+
+    private void expandFirstAppBar(View root) {
+        if (root instanceof AppBarLayout) {
+            ((AppBarLayout) root).setExpanded(true, false);
+            return;
+        }
+        if (!(root instanceof ViewGroup)) {
+            return;
+        }
+        ViewGroup group = (ViewGroup) root;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof AppBarLayout) {
+                ((AppBarLayout) child).setExpanded(true, false);
+                return;
+            }
+            expandFirstAppBar(child);
+        }
+    }
+
+    private boolean scrollViewToTop(View root) {
+        if (root instanceof NestedScrollView) {
+            ((NestedScrollView) root).scrollTo(0, 0);
+            return true;
+        }
+        if (root instanceof ScrollView) {
+            ((ScrollView) root).scrollTo(0, 0);
+            return true;
+        }
+        if (root instanceof RecyclerView) {
+            ((RecyclerView) root).scrollToPosition(0);
+            return true;
+        }
+        if (!(root instanceof ViewGroup)) {
+            return false;
+        }
+        ViewGroup group = (ViewGroup) root;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            if (scrollViewToTop(group.getChildAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void applyFragmentHeaderChrome(Fragment fragment) {
+        if (fragment == null || fragment.getView() == null) {
+            return;
+        }
+        CollapsingToolbarLayout collapsingToolbarLayout =
+            fragment.getView().findViewById(R.id.fragment_header_collapsing_toolbar);
+        if (collapsingToolbarLayout != null) {
+            collapsingToolbarLayout.setContentScrimColor(resolveChromeColor());
+        }
+    }
+
+    private int resolveChromeColor() {
+        return MaterialColors.getColor(
+            binding.getRoot(),
+            com.google.android.material.R.attr.colorSurfaceVariant
+        );
+    }
+
+    private int resolveIndicatorColor() {
+        int chromeColor = resolveChromeColor();
+        int onSurfaceColor = MaterialColors.getColor(
+            binding.getRoot(),
+            com.google.android.material.R.attr.colorOnSurface
+        );
+        return ColorUtils.blendARGB(chromeColor, onSurfaceColor, 0.08f);
     }
 }

@@ -83,6 +83,7 @@
     <string name="settings_section_advanced">詳細設定</string>
     <string name="settings_advanced_summary">空欄のままなら実機の値をそのまま使います。</string>
     <string name="settings_generate_random">ランダム値を生成</string>
+    <string name="settings_clear_all">すべてクリア</string>
     <string name="settings_hint_preset">プリセット</string>
     <string name="settings_field_brand">ブランド</string>
     <string name="settings_field_manufacturer">メーカー</string>
