@@ -20,10 +20,14 @@ public class BuildHooks {
     private static final String TAG = "DeviceSpoofLab-Build";
 
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
-        reapply(lpparam.classLoader);
+        reapply(lpparam.classLoader, lpparam.packageName);
     }
 
     public static void reapply(ClassLoader classLoader) {
+        reapply(classLoader, null);
+    }
+
+    public static void reapply(ClassLoader classLoader, String packageName) {
         try {
             Class<?> buildClass = findBuildClass(classLoader, "android.os.Build");
             Class<?> versionClass = findBuildClass(classLoader, "android.os.Build$VERSION");
@@ -34,7 +38,7 @@ public class BuildHooks {
             }
 
             applyBuildFields(buildClass);
-            if (versionClass != null) {
+            if (versionClass != null && !ConfigManager.shouldBypassVersionSpoof(packageName)) {
                 applyVersionFields(versionClass);
             }
             hookGetSerial(buildClass);

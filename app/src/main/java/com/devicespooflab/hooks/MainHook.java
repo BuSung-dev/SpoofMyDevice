@@ -157,7 +157,7 @@ public class MainHook implements IXposedHookLoadPackage {
                         try {
                             android.content.Context context = (android.content.Context) param.args[0];
                             ConfigManager.forceReload(context);
-                            BuildHooks.reapply(((android.content.Context) param.args[0]).getClassLoader());
+                            BuildHooks.reapply(((android.content.Context) param.args[0]).getClassLoader(), lpparam.packageName);
                             XposedBridge.log(TAG + ": Config reloaded after Application.attach for " + lpparam.packageName);
                         } catch (Throwable throwable) {
                             XposedBridge.log(TAG + ": Failed to reload config after attach for " + lpparam.packageName + ": " + throwable.getMessage());

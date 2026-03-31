@@ -53,8 +53,14 @@
     <string name="settings_appearance_title">Appearance</string>
     <string name="settings_tools_title">Tools</string>
     <string name="settings_diagnostics_title">Diagnostics</string>
+    <string name="settings_presets_title">Presets</string>
     <string name="settings_runtime_title">Runtime Options</string>
     <string name="settings_real_info_title">App Info</string>
+    <string name="settings_preset_source_title">Preset source URL</string>
+    <string name="settings_preset_source_message">Enter a GitHub repository URL that contains preset JSON files.</string>
+    <string name="settings_preset_source_updated">Preset source updated.</string>
+    <string name="settings_preset_source_empty">No remote presets were found at the current source URL.</string>
+    <string name="settings_preset_source_failed">Failed to update the preset source.</string>
     <string name="settings_system_colors_title">Use system colors</string>
     <string name="settings_system_colors_summary">Use Material You colors from the system when available.</string>
     <string name="settings_color_style_title">Color style</string>
@@ -81,6 +87,10 @@
     <string name="settings_choose_color_style">Choose color style</string>
     <string name="settings_resolution_title">Apply spoofed screen resolution</string>
     <string name="settings_resolution_summary">Off by default. Some apps may break when forced.</string>
+    <string name="settings_safe_mode_title">Safe Mode</string>
+    <string name="settings_safe_mode_summary_disabled">Disabled</string>
+    <string name="settings_safe_mode_summary_count">%1$d apps protected</string>
+    <string name="settings_safe_mode_failed">Failed to update Safe Mode.</string>
     <string name="settings_section_preset_mode">Preset and mode</string>
     <string name="settings_section_identity">Identity</string>
     <string name="settings_section_build_display">Build and display</string>

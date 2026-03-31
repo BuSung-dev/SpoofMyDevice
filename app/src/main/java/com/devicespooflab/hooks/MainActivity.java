@@ -34,8 +34,10 @@ import com.google.android.material.navigation.NavigationBarView;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -46,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private ConfigFileManager configFileManager;
+    private DevicePresetCatalog presetCatalog;
     private List<DevicePreset> presets;
     private ConfigFileManager.LoadedConfig loadedConfig;
 
@@ -68,12 +71,14 @@ public class MainActivity extends AppCompatActivity {
         configureNavigationAppearance();
 
         configFileManager = new ConfigFileManager();
-        presets = new DevicePresetCatalog().load(this);
+        presetCatalog = new DevicePresetCatalog();
+        presets = presetCatalog.load(this);
         loadedConfig = loadInitialConfig();
 
         setupFragments(savedInstanceState);
         setupBottomNavigation(savedInstanceState);
         binding.saveFab.setOnClickListener(view -> saveFromEditor());
+        refreshRemotePresets(false);
     }
 
     public List<DevicePreset> getPresets() {
@@ -132,18 +137,7 @@ public class MainActivity extends AppCompatActivity {
             return configFileManager.ensureLoaded(this, presets);
         } catch (Exception exception) {
             Toast.makeText(this, exception.getMessage(), Toast.LENGTH_LONG).show();
-            try {
-                DevicePreset fallback = presets.get(0);
-                return configFileManager.save(
-                    this,
-                    fallback.getProfile(),
-                    null,
-                    fallback.getId(),
-                    false
-                );
-            } catch (Exception innerException) {
-                throw new IllegalStateException("Unable to initialize configuration", innerException);
-            }
+            throw new IllegalStateException("Unable to initialize configuration", exception);
         }
     }
 
@@ -272,6 +266,64 @@ public class MainActivity extends AppCompatActivity {
         startActivity(new Intent(this, RealInfoActivity.class));
     }
 
+    public String getPresetSourceUrl() {
+        return AppSettingsStore.getPresetSourceUrl(this);
+    }
+
+    public boolean updatePresetSourceUrl(String value) {
+        try {
+            AppSettingsStore.setPresetSourceUrl(this, value);
+            refreshRemotePresets(true);
+            return true;
+        } catch (Exception exception) {
+            Snackbar.make(binding.getRoot(), getString(R.string.settings_preset_source_failed) + " " + exception.getMessage(), Snackbar.LENGTH_LONG).show();
+            return false;
+        }
+    }
+
+    public Set<String> getSafeModePackages() {
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        String raw = loadedConfig.getExtraProperties().get(ConfigManager.KEY_SAFE_MODE_PACKAGES);
+        if (raw == null || raw.trim().isEmpty()) {
+            return result;
+        }
+        String[] parts = raw.split("[,\\n]");
+        for (String part : parts) {
+            String normalized = part.trim();
+            if (!normalized.isEmpty()) {
+                result.add(normalized);
+            }
+        }
+        return result;
+    }
+
+    public boolean updateSafeModePackages(Set<String> packageNames) {
+        try {
+            Map<String, String> extraProperties = new LinkedHashMap<>(loadedConfig.getExtraProperties());
+            if (packageNames == null || packageNames.isEmpty()) {
+                extraProperties.remove(ConfigManager.KEY_SAFE_MODE_PACKAGES);
+            } else {
+                extraProperties.put(
+                    ConfigManager.KEY_SAFE_MODE_PACKAGES,
+                    String.join(",", new LinkedHashSet<>(packageNames))
+                );
+            }
+            loadedConfig = configFileManager.save(
+                this,
+                loadedConfig.getProfile(),
+                extraProperties,
+                loadedConfig.getSelectedPresetId(),
+                loadedConfig.isCustomMode()
+            );
+            settingsFragment.refreshFromHost(true);
+            appSettingsFragment.refreshFromHost();
+            return true;
+        } catch (Exception exception) {
+            Snackbar.make(binding.getRoot(), getString(R.string.settings_safe_mode_failed) + " " + exception.getMessage(), Snackbar.LENGTH_LONG).show();
+            return false;
+        }
+    }
+
     public boolean isScreenMetricsSpoofEnabled() {
         Map<String, String> extraProperties = loadedConfig.getExtraProperties();
         String value = extraProperties.get(ConfigManager.KEY_APPLY_SCREEN_METRICS);
@@ -395,5 +447,35 @@ public class MainActivity extends AppCompatActivity {
             com.google.android.material.R.attr.colorOnSurface
         );
         return ColorUtils.blendARGB(chromeColor, onSurfaceColor, 0.08f);
+    }
+
+    private void refreshRemotePresets(boolean userInitiated) {
+        new Thread(() -> {
+            List<DevicePreset> remotePresets = presetCatalog.refreshRemote(this, AppSettingsStore.getPresetSourceUrl(this));
+            if (remotePresets == null || remotePresets.isEmpty()) {
+                if (userInitiated) {
+                    runOnUiThread(() ->
+                        Snackbar.make(binding.getRoot(), R.string.settings_preset_source_empty, Snackbar.LENGTH_LONG).show()
+                    );
+                }
+                return;
+            }
+
+            runOnUiThread(() -> {
+                presets = remotePresets;
+                if (settingsFragment != null) {
+                    settingsFragment.refreshFromHost(true);
+                }
+                if (homeFragment != null) {
+                    homeFragment.refresh();
+                }
+                if (appSettingsFragment != null) {
+                    appSettingsFragment.refreshFromHost();
+                }
+                if (userInitiated) {
+                    Snackbar.make(binding.getRoot(), R.string.settings_preset_source_updated, Snackbar.LENGTH_SHORT).show();
+                }
+            });
+        }, "spoofmydevice-preset-sync").start();
     }
 }

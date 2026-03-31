@@ -48,8 +48,14 @@
     <string name="settings_theme_title">テーマ</string>
     <string name="settings_appearance_title">外観</string>
     <string name="settings_diagnostics_title">診断</string>
+    <string name="settings_presets_title">プリセット</string>
     <string name="settings_runtime_title">ランタイムオプション</string>
     <string name="settings_real_info_title">アプリ情報</string>
+    <string name="settings_preset_source_title">プリセットソース URL</string>
+    <string name="settings_preset_source_message">プリセット JSON ファイルを含む GitHub リポジトリ URL を入力してください。</string>
+    <string name="settings_preset_source_updated">プリセットソースを更新しました。</string>
+    <string name="settings_preset_source_empty">現在のソース URL にリモートプリセットが見つかりませんでした。</string>
+    <string name="settings_preset_source_failed">プリセットソースの更新に失敗しました。</string>
     <string name="settings_system_colors_title">システムカラーを使用</string>
     <string name="settings_system_colors_summary">利用可能な場合はシステムの Material You カラーを使用します。</string>
     <string name="settings_color_style_title">カラースタイル</string>
@@ -76,6 +82,10 @@
     <string name="settings_choose_color_style">カラースタイルを選択</string>
     <string name="settings_resolution_title">偽装解像度を適用</string>
     <string name="settings_resolution_summary">デフォルトではオフです。強制すると一部のアプリが壊れる場合があります。</string>
+    <string name="settings_safe_mode_title">Safe Mode</string>
+    <string name="settings_safe_mode_summary_disabled">無効</string>
+    <string name="settings_safe_mode_summary_count">%1$d個のアプリを保護中</string>
+    <string name="settings_safe_mode_failed">Safe Mode の更新に失敗しました。</string>
     <string name="settings_section_preset_mode">プリセットとモード</string>
     <string name="settings_section_identity">端末情報</string>
     <string name="settings_section_build_display">ビルドとディスプレイ</string>

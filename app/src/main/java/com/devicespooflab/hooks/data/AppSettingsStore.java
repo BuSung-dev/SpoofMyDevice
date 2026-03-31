@@ -25,12 +25,14 @@ public final class AppSettingsStore {
     public static final String COLOR_STYLE_BLUE = "blue";
     public static final String COLOR_STYLE_ROSE = "rose";
     public static final String COLOR_STYLE_AMBER = "amber";
+    public static final String DEFAULT_PRESET_SOURCE_URL = "https://github.com/BuSung-dev/SpoofMyDevice_Devices.git";
 
     private static final String PREFS_NAME = "app_settings";
     private static final String KEY_THEME_MODE = "theme_mode";
     private static final String KEY_LANGUAGE_MODE = "language_mode";
     private static final String KEY_USE_SYSTEM_COLORS = "use_system_colors";
     private static final String KEY_COLOR_STYLE = "color_style";
+    private static final String KEY_PRESET_SOURCE_URL = "preset_source_url";
 
     private AppSettingsStore() {
     }
@@ -82,6 +84,18 @@ public final class AppSettingsStore {
 
     public static void setColorStyle(Context context, String value) {
         preferences(context).edit().putString(KEY_COLOR_STYLE, normalizeColorStyle(value)).apply();
+    }
+
+    public static String getPresetSourceUrl(Context context) {
+        return normalizePresetSourceUrl(
+            preferences(context).getString(KEY_PRESET_SOURCE_URL, DEFAULT_PRESET_SOURCE_URL)
+        );
+    }
+
+    public static void setPresetSourceUrl(Context context, String value) {
+        preferences(context).edit()
+            .putString(KEY_PRESET_SOURCE_URL, normalizePresetSourceUrl(value))
+            .apply();
     }
 
     private static SharedPreferences preferences(Context context) {
@@ -165,6 +179,14 @@ public final class AppSettingsStore {
             return COLOR_STYLE_AMBER;
         }
         return COLOR_STYLE_MINT;
+    }
+
+    private static String normalizePresetSourceUrl(String value) {
+        if (value == null) {
+            return DEFAULT_PRESET_SOURCE_URL;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? DEFAULT_PRESET_SOURCE_URL : trimmed;
     }
 
     private static int resolveStaticTheme(String colorStyle) {

@@ -23,16 +23,16 @@ public class SystemPropertiesHooks {
 
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
-            hookSystemProperties(null);
+            hookSystemProperties(null, lpparam.packageName);
 
             // Hook SystemProperties in app's classloader
-            hookSystemProperties(lpparam.classLoader);
+            hookSystemProperties(lpparam.classLoader, lpparam.packageName);
 
             // Also try to hook in system classloader (for apps that use it)
             try {
                 ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
                 if (systemClassLoader != null && systemClassLoader != lpparam.classLoader) {
-                    hookSystemProperties(systemClassLoader);
+                    hookSystemProperties(systemClassLoader, lpparam.packageName);
                 }
             } catch (Exception e) {
                 // System classloader hook failed, that's okay
@@ -42,7 +42,7 @@ public class SystemPropertiesHooks {
         }
     }
 
-    private static void hookSystemProperties(ClassLoader classLoader) {
+    private static void hookSystemProperties(ClassLoader classLoader, String packageName) {
         Class<?> sysPropClass = XposedHelpers.findClassIfExists(SYSTEM_PROPERTIES_CLASS, classLoader);
 
         if (sysPropClass == null) {
@@ -57,7 +57,9 @@ public class SystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         String key = (String) param.args[0];
-                        String originalValue = (String) param.getResult();
+                        if (ConfigManager.shouldBypassVersionSpoof(packageName) && isVersionProperty(key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
 
                         if (spoofedValue != null) {
@@ -77,7 +79,9 @@ public class SystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         String key = (String) param.args[0];
-                        String defaultValue = (String) param.args[1];
+                        if (ConfigManager.shouldBypassVersionSpoof(packageName) && isVersionProperty(key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
 
                         if (spoofedValue != null) {
@@ -97,6 +101,9 @@ public class SystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         String key = (String) param.args[0];
+                        if (ConfigManager.shouldBypassVersionSpoof(packageName) && isVersionProperty(key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
 
                         if (spoofedValue != null) {
@@ -121,6 +128,9 @@ public class SystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         String key = (String) param.args[0];
+                        if (ConfigManager.shouldBypassVersionSpoof(packageName) && isVersionProperty(key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
 
                         if (spoofedValue != null) {
@@ -143,6 +153,9 @@ public class SystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         String key = (String) param.args[0];
+                        if (ConfigManager.shouldBypassVersionSpoof(packageName) && isVersionProperty(key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
 
                         if (spoofedValue != null) {
@@ -158,5 +171,14 @@ public class SystemPropertiesHooks {
         } catch (Exception e) {
             XposedBridge.log(TAG + ": Failed to hook getLong(String, long): " + e.getMessage());
         }
+    }
+
+    private static boolean isVersionProperty(String key) {
+        if (key == null) {
+            return false;
+        }
+        return key.startsWith("ro.build.version.")
+            || key.startsWith("ro.product.build.version.")
+            || key.contains(".build.version.");
     }
 }

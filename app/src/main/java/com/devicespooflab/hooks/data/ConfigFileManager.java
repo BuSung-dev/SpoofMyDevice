@@ -35,9 +35,10 @@ public class ConfigFileManager {
     public LoadedConfig ensureLoaded(Context context, List<DevicePreset> presets) throws Exception {
         File configFile = getConfigFile(context);
         if (!configFile.exists()) {
-            DevicePreset defaultPreset = presets.isEmpty()
-                ? new DevicePresetCatalog().createFallbackPreset()
-                : presets.get(0);
+            if (presets.isEmpty()) {
+                throw new IllegalStateException("No remote presets available yet.");
+            }
+            DevicePreset defaultPreset = presets.get(0);
             return save(context, defaultPreset.getProfile(), new LinkedHashMap<String, String>(), defaultPreset.getId(), false);
         }
         return load(context, presets);
@@ -82,7 +83,7 @@ public class ConfigFileManager {
         DeviceProfile baseProfile = findPresetProfile(presets, selectedPresetId);
         if (baseProfile == null) {
             baseProfile = presets.isEmpty()
-                ? new DevicePresetCatalog().createFallbackPreset().getProfile()
+                ? new DeviceProfile()
                 : presets.get(0).getProfile();
         }
 

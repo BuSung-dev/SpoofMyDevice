@@ -1,9 +1,13 @@
 package com.devicespooflab.hooks.ui;
 
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,7 +20,14 @@ import com.devicespooflab.hooks.databinding.FragmentAppSettingsBinding;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class AppSettingsFragment extends Fragment {
 
@@ -74,6 +85,15 @@ public class AppSettingsFragment extends Fragment {
             R.string.settings_color_style_summary,
             findLabel(colorStyleOptions, AppSettingsStore.getColorStyle(requireContext()))
         ));
+        binding.presetSourceSummary.setText(AppSettingsStore.getPresetSourceUrl(requireContext()));
+        Set<String> safeModePackages = activity.getSafeModePackages();
+        if (safeModePackages.isEmpty()) {
+            binding.safeModeSummary.setText(R.string.settings_safe_mode_summary_disabled);
+        } else {
+            binding.safeModeSummary.setText(
+                getString(R.string.settings_safe_mode_summary_count, safeModePackages.size())
+            );
+        }
         binding.systemColorsSwitch.setChecked(systemColorsEnabled);
         binding.colorStyleRow.setVisibility(systemColorsEnabled ? View.GONE : View.VISIBLE);
         binding.resolutionSwitch.setChecked(activity.isScreenMetricsSpoofEnabled());
@@ -107,9 +127,11 @@ public class AppSettingsFragment extends Fragment {
             }
         });
 
+        binding.presetSourceRow.setOnClickListener(v -> showPresetSourceDialog());
         binding.themeRow.setOnClickListener(v -> showThemeDialog());
         binding.languageRow.setOnClickListener(v -> showLanguageDialog());
         binding.colorStyleRow.setOnClickListener(v -> showColorStyleDialog());
+        binding.safeModeRow.setOnClickListener(v -> showSafeModeDialog());
         binding.systemColorsRow.setOnClickListener(v -> {
             systemColorsToggleFromRow = true;
             binding.systemColorsSwitch.toggle();
@@ -166,6 +188,65 @@ public class AppSettingsFragment extends Fragment {
                     refreshFromHost();
                 }
                 dialog.dismiss();
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
+    }
+
+    private void showPresetSourceDialog() {
+        if (!(requireActivity() instanceof MainActivity)) {
+            return;
+        }
+        MainActivity activity = (MainActivity) requireActivity();
+        EditText input = new EditText(requireContext());
+        input.setText(activity.getPresetSourceUrl());
+        input.setSingleLine(true);
+        input.setSelectAllOnFocus(true);
+
+        new MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.settings_preset_source_title)
+            .setMessage(R.string.settings_preset_source_message)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                activity.updatePresetSourceUrl(input.getText() == null ? "" : input.getText().toString());
+                refreshFromHost();
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
+    }
+
+    private void showSafeModeDialog() {
+        if (!(requireActivity() instanceof MainActivity)) {
+            return;
+        }
+        MainActivity activity = (MainActivity) requireActivity();
+        List<AppEntry> apps = loadLaunchableApps();
+        if (apps.isEmpty()) {
+            return;
+        }
+
+        Set<String> selectedPackages = new LinkedHashSet<>(activity.getSafeModePackages());
+        CharSequence[] labels = new CharSequence[apps.size()];
+        boolean[] checked = new boolean[apps.size()];
+        for (int i = 0; i < apps.size(); i++) {
+            AppEntry app = apps.get(i);
+            labels[i] = app.label + "\n" + app.packageName;
+            checked[i] = selectedPackages.contains(app.packageName);
+        }
+
+        new MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.settings_safe_mode_title)
+            .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
+                String packageName = apps.get(which).packageName;
+                if (isChecked) {
+                    selectedPackages.add(packageName);
+                } else {
+                    selectedPackages.remove(packageName);
+                }
+            })
+            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                activity.updateSafeModePackages(selectedPackages);
+                refreshFromHost();
             })
             .setNegativeButton(android.R.string.cancel, null)
             .show();
@@ -258,12 +339,43 @@ public class AppSettingsFragment extends Fragment {
         requireActivity().recreate();
     }
 
+    private List<AppEntry> loadLaunchableApps() {
+        PackageManager packageManager = requireContext().getPackageManager();
+        Intent intent = new Intent(Intent.ACTION_MAIN, null);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> resolvedApps = packageManager.queryIntentActivities(intent, 0);
+        Map<String, AppEntry> entries = new LinkedHashMap<>();
+        for (ResolveInfo resolveInfo : resolvedApps) {
+            if (resolveInfo.activityInfo == null) {
+                continue;
+            }
+            String packageName = resolveInfo.activityInfo.packageName;
+            String label = String.valueOf(resolveInfo.loadLabel(packageManager));
+            if (!entries.containsKey(packageName)) {
+                entries.put(packageName, new AppEntry(packageName, label));
+            }
+        }
+        List<AppEntry> result = new ArrayList<>(entries.values());
+        Collections.sort(result, Comparator.comparing(entry -> entry.label.toLowerCase()));
+        return result;
+    }
+
     private static final class Option {
         private final String id;
         private final String label;
 
         private Option(String id, String label) {
             this.id = id;
+            this.label = label;
+        }
+    }
+
+    private static final class AppEntry {
+        private final String packageName;
+        private final String label;
+
+        private AppEntry(String packageName, String label) {
+            this.packageName = packageName;
             this.label = label;
         }
     }

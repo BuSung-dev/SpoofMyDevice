@@ -51,8 +51,14 @@
     <string name="settings_theme_title">테마</string>
     <string name="settings_appearance_title">화면</string>
     <string name="settings_diagnostics_title">진단</string>
+    <string name="settings_presets_title">프리셋</string>
     <string name="settings_runtime_title">런타임 옵션</string>
     <string name="settings_real_info_title">앱 정보</string>
+    <string name="settings_preset_source_title">프리셋 소스 URL</string>
+    <string name="settings_preset_source_message">프리셋 JSON 파일이 들어 있는 GitHub 저장소 URL을 입력하세요.</string>
+    <string name="settings_preset_source_updated">프리셋 소스가 업데이트되었습니다.</string>
+    <string name="settings_preset_source_empty">현재 소스 URL에서 원격 프리셋을 찾지 못했습니다.</string>
+    <string name="settings_preset_source_failed">프리셋 소스 업데이트에 실패했습니다.</string>
     <string name="settings_system_colors_title">시스템 색상 사용</string>
     <string name="settings_system_colors_summary">가능한 경우 시스템의 Material You 색상을 사용합니다.</string>
     <string name="settings_color_style_title">컬러 스타일</string>
@@ -79,6 +85,10 @@
     <string name="settings_choose_color_style">컬러 스타일 선택</string>
     <string name="settings_resolution_title">스푸핑 해상도 적용</string>
     <string name="settings_resolution_summary">기본값은 꺼짐입니다. 강제 적용 시 일부 앱이 깨질 수 있습니다.</string>
+    <string name="settings_safe_mode_title">Safe Mode</string>
+    <string name="settings_safe_mode_summary_disabled">비활성화</string>
+    <string name="settings_safe_mode_summary_count">%1$d개 앱 보호 중</string>
+    <string name="settings_safe_mode_failed">Safe Mode 업데이트에 실패했습니다.</string>
     <string name="settings_section_preset_mode">프리셋 및 모드</string>
     <string name="settings_section_identity">기기 정보</string>
     <string name="settings_section_build_display">빌드 및 디스플레이</string>

@@ -37,6 +37,7 @@ public class ConfigManager {
     public static final String KEY_SPOOF_GSF_ID = "device.gsf_id";
     public static final String KEY_SPOOF_MEDIA_DRM_ID = "device.media_drm_id";
     public static final String KEY_SPOOF_APP_SET_ID = "device.app_set_id";
+    public static final String KEY_SAFE_MODE_PACKAGES = "safe_mode.packages";
 
     private static final String[] CONFIG_PATHS = {
         "/data/data/com.spoofmydevice/files/device_profile.conf",
@@ -424,6 +425,24 @@ public class ConfigManager {
             return false;
         }
         return explicit.equals("1") || explicit.equalsIgnoreCase("true");
+    }
+
+    public static boolean shouldBypassVersionSpoof(String packageName) {
+        if (packageName == null || packageName.trim().isEmpty()) {
+            return false;
+        }
+        String configured = getOptionalConfigValue(KEY_SAFE_MODE_PACKAGES);
+        if (configured == null) {
+            return false;
+        }
+        String normalizedPackage = packageName.trim();
+        String[] parts = configured.split("[,\\n]");
+        for (String part : parts) {
+            if (normalizedPackage.equals(part.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static String getIMEI() {
