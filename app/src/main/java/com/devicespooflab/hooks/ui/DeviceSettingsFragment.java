@@ -8,13 +8,16 @@ import android.media.MediaDrm;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -31,7 +34,9 @@ import com.devicespooflab.hooks.data.DeviceProfile;
 import com.devicespooflab.hooks.databinding.FragmentDeviceSettingsBinding;
 import com.devicespooflab.hooks.utils.ConfigManager;
 import com.devicespooflab.hooks.utils.RandomGenerator;
+import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -59,7 +64,9 @@ public class DeviceSettingsFragment extends Fragment {
     private boolean initialized;
     private boolean applying;
     private boolean advancedExpanded;
+    private boolean bindingToggleState;
     private DeviceProfile workingProfile;
+    private final Map<String, ToggleBinding> toggleBindings = new LinkedHashMap<>();
 
     @Nullable
     @Override
@@ -71,6 +78,7 @@ public class DeviceSettingsFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        installSpoofToggles();
         setupListeners();
         updateAdvancedSectionState();
     }
@@ -86,6 +94,7 @@ public class DeviceSettingsFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        toggleBindings.clear();
         binding = null;
     }
 
@@ -110,9 +119,9 @@ public class DeviceSettingsFragment extends Fragment {
         setupPresetDropdown();
         bindProfile(workingProfile);
         bindAdvancedProperties(loadedConfig.getExtraProperties());
+        bindToggleStates(loadedConfig.getExtraProperties());
         populateAdvancedDefaultsIfNeeded();
         applyMode(customMode, false);
-        updatePresetSummary();
         initialized = true;
     }
 
@@ -159,7 +168,6 @@ public class DeviceSettingsFragment extends Fragment {
             selectedPresetId = preset.getId();
             workingProfile = preset.getProfile();
             applyMode(false, true);
-            updatePresetSummary();
         });
 
         binding.modeToggle.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
@@ -168,8 +176,7 @@ public class DeviceSettingsFragment extends Fragment {
             }
             if (checkedId == R.id.button_mode_custom) {
                 customMode = true;
-                setFieldsEnabled(true);
-                updatePresetSummary();
+                updateFieldEnablement();
                 return;
             }
 
@@ -184,8 +191,7 @@ public class DeviceSettingsFragment extends Fragment {
                 workingProfile = preset.getProfile();
                 bindProfile(workingProfile);
             }
-            setFieldsEnabled(false);
-            updatePresetSummary();
+            updateFieldEnablement();
         });
 
         binding.advancedToggleHeader.setOnClickListener(v -> {
@@ -251,7 +257,7 @@ public class DeviceSettingsFragment extends Fragment {
         if (rebindProfile && workingProfile != null) {
             bindProfile(workingProfile);
         }
-        setFieldsEnabled(enableCustom);
+        updateFieldEnablement();
     }
 
     private void bindProfile(DeviceProfile profile) {
@@ -281,61 +287,6 @@ public class DeviceSettingsFragment extends Fragment {
         setText(binding.inputTimezone, profile.getTimezone());
     }
 
-    private void setFieldsEnabled(boolean enabled) {
-        TextInputEditText[] fields = new TextInputEditText[] {
-            binding.inputBrand,
-            binding.inputManufacturer,
-            binding.inputModel,
-            binding.inputDevice,
-            binding.inputProduct,
-            binding.inputBoard,
-            binding.inputHardware,
-            binding.inputBoardPlatform,
-            binding.inputAndroidRelease,
-            binding.inputSdk,
-            binding.inputSecurityPatch,
-            binding.inputBuildId,
-            binding.inputBuildIncremental,
-            binding.inputFingerprint,
-            binding.inputScreenWidth,
-            binding.inputScreenHeight,
-            binding.inputScreenDensity,
-            binding.inputOperatorAlpha,
-            binding.inputOperatorNumeric,
-            binding.inputSimCountry,
-            binding.inputTimezone
-        };
-        for (TextInputEditText field : fields) {
-            field.setEnabled(enabled);
-        }
-    }
-
-    private void updatePresetSummary() {
-        DevicePreset preset = findPresetById(selectedPresetId);
-        if (customMode) {
-            if (preset != null) {
-                binding.presetSummary.setText(getString(
-                    R.string.settings_custom_summary,
-                    preset.getDisplayName(),
-                    preset.getSummary()
-                ));
-            } else {
-                binding.presetSummary.setText(getString(R.string.preset_unknown));
-            }
-            return;
-        }
-
-        if (preset != null) {
-            binding.presetSummary.setText(getString(
-                R.string.settings_preset_summary,
-                preset.getDisplayName(),
-                preset.getSummary()
-            ));
-        } else {
-            binding.presetSummary.setText(getString(R.string.preset_unknown));
-        }
-    }
-
     private void bindAdvancedProperties(Map<String, String> extraProperties) {
         setText(binding.inputAdvancedImei, extraProperties.get(ConfigManager.KEY_SPOOF_IMEI));
         setText(binding.inputAdvancedMeid, extraProperties.get(ConfigManager.KEY_SPOOF_MEID));
@@ -346,6 +297,19 @@ public class DeviceSettingsFragment extends Fragment {
         setText(binding.inputAdvancedGsfId, extraProperties.get(ConfigManager.KEY_SPOOF_GSF_ID));
         setText(binding.inputAdvancedMediaDrmId, extraProperties.get(ConfigManager.KEY_SPOOF_MEDIA_DRM_ID));
         setText(binding.inputAdvancedAppSetId, extraProperties.get(ConfigManager.KEY_SPOOF_APP_SET_ID));
+    }
+
+    private void bindToggleStates(Map<String, String> extraProperties) {
+        bindingToggleState = true;
+        for (ToggleBinding toggleBinding : toggleBindings.values()) {
+            String explicitValue = extraProperties.get(ConfigManager.getTogglePropertyKey(toggleBinding.fieldId));
+            boolean enabled = explicitValue == null
+                || explicitValue.equals("1")
+                || explicitValue.equalsIgnoreCase("true");
+            toggleBinding.toggle.setChecked(enabled);
+        }
+        bindingToggleState = false;
+        updateFieldEnablement();
     }
 
     private void populateAdvancedDefaultsIfNeeded() {
@@ -398,6 +362,14 @@ public class DeviceSettingsFragment extends Fragment {
         putOptional(extraProperties, ConfigManager.KEY_SPOOF_GSF_ID, text(binding.inputAdvancedGsfId));
         putOptional(extraProperties, ConfigManager.KEY_SPOOF_MEDIA_DRM_ID, text(binding.inputAdvancedMediaDrmId));
         putOptional(extraProperties, ConfigManager.KEY_SPOOF_APP_SET_ID, text(binding.inputAdvancedAppSetId));
+        for (ToggleBinding toggleBinding : toggleBindings.values()) {
+            String key = ConfigManager.getTogglePropertyKey(toggleBinding.fieldId);
+            if (toggleBinding.toggle.isChecked()) {
+                extraProperties.remove(key);
+            } else {
+                extraProperties.put(key, "false");
+            }
+        }
         return extraProperties;
     }
 
@@ -411,6 +383,193 @@ public class DeviceSettingsFragment extends Fragment {
         setText(binding.inputAdvancedGsfId, "");
         setText(binding.inputAdvancedMediaDrmId, "");
         setText(binding.inputAdvancedAppSetId, "");
+    }
+
+    private void installSpoofToggles() {
+        if (binding == null || !toggleBindings.isEmpty()) {
+            return;
+        }
+
+        registerToggle(ConfigManager.FIELD_BRAND, layoutOf(binding.inputBrand), true);
+        registerToggle(ConfigManager.FIELD_MANUFACTURER, layoutOf(binding.inputManufacturer), true);
+        registerToggle(ConfigManager.FIELD_MODEL, layoutOf(binding.inputModel), true);
+        registerToggle(ConfigManager.FIELD_DEVICE, layoutOf(binding.inputDevice), true);
+        registerToggle(ConfigManager.FIELD_PRODUCT, layoutOf(binding.inputProduct), true);
+        registerToggle(ConfigManager.FIELD_BOARD, layoutOf(binding.inputBoard), true);
+        registerToggle(ConfigManager.FIELD_HARDWARE, layoutOf(binding.inputHardware), true);
+        registerToggle(ConfigManager.FIELD_BOARD_PLATFORM, layoutOf(binding.inputBoardPlatform), true);
+        registerToggle(ConfigManager.FIELD_ANDROID_RELEASE, layoutOf(binding.inputAndroidRelease), true);
+        registerToggle(ConfigManager.FIELD_SDK, layoutOf(binding.inputSdk), true);
+        registerToggle(ConfigManager.FIELD_SECURITY_PATCH, layoutOf(binding.inputSecurityPatch), true);
+        registerToggle(ConfigManager.FIELD_BUILD_ID, layoutOf(binding.inputBuildId), true);
+        registerToggle(ConfigManager.FIELD_BUILD_INCREMENTAL, layoutOf(binding.inputBuildIncremental), true);
+        registerToggle(ConfigManager.FIELD_FINGERPRINT, layoutOf(binding.inputFingerprint), true);
+        registerToggle(ConfigManager.FIELD_SCREEN_WIDTH, layoutOf(binding.inputScreenWidth), true);
+        registerToggle(ConfigManager.FIELD_SCREEN_HEIGHT, layoutOf(binding.inputScreenHeight), true);
+        registerToggle(ConfigManager.FIELD_SCREEN_DENSITY, layoutOf(binding.inputScreenDensity), true);
+        registerToggle(ConfigManager.FIELD_OPERATOR_ALPHA, layoutOf(binding.inputOperatorAlpha), true);
+        registerToggle(ConfigManager.FIELD_OPERATOR_NUMERIC, layoutOf(binding.inputOperatorNumeric), true);
+        registerToggle(ConfigManager.FIELD_SIM_COUNTRY, layoutOf(binding.inputSimCountry), true);
+        registerToggle(ConfigManager.FIELD_TIMEZONE, layoutOf(binding.inputTimezone), true);
+
+        registerToggle(ConfigManager.FIELD_IMEI, binding.layoutAdvancedImei, false);
+        registerToggle(ConfigManager.FIELD_MEID, binding.layoutAdvancedMeid, false);
+        registerToggle(ConfigManager.FIELD_IMSI, binding.layoutAdvancedImsi, false);
+        registerToggle(ConfigManager.FIELD_ICCID, binding.layoutAdvancedIccid, false);
+        registerToggle(ConfigManager.FIELD_PHONE_NUMBER, binding.layoutAdvancedPhoneNumber, false);
+        registerToggle(ConfigManager.FIELD_GAID, binding.layoutAdvancedGaid, false);
+        registerToggle(ConfigManager.FIELD_GSF_ID, binding.layoutAdvancedGsfId, false);
+        registerToggle(ConfigManager.FIELD_MEDIA_DRM_ID, binding.layoutAdvancedMediaDrmId, false);
+        registerToggle(ConfigManager.FIELD_APP_SET_ID, binding.layoutAdvancedAppSetId, false);
+
+        updateFieldEnablement();
+    }
+
+    private void registerToggle(String fieldId, TextInputLayout inputLayout, boolean dependsOnCustomMode) {
+        if (inputLayout == null) {
+            return;
+        }
+        ViewGroup parent = (ViewGroup) inputLayout.getParent();
+        if (!(parent instanceof LinearLayout)) {
+            return;
+        }
+
+        LinearLayout.LayoutParams existingParams = asLinearLayoutParams(inputLayout.getLayoutParams());
+        LinearLayout.LayoutParams wrapperParams = new LinearLayout.LayoutParams(existingParams);
+        LinearLayout wrapper = new LinearLayout(requireContext());
+        wrapper.setOrientation(LinearLayout.HORIZONTAL);
+        wrapper.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        wrapper.setLayoutParams(wrapperParams);
+
+        MaterialCheckBox toggle = new MaterialCheckBox(requireContext());
+        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        toggleParams.setMarginEnd(dp(12));
+        toggle.setLayoutParams(toggleParams);
+        toggle.setUseMaterialThemeColors(true);
+        toggle.setChecked(true);
+        toggle.setMinWidth(0);
+        toggle.setMinimumWidth(0);
+        toggle.setPadding(0, 0, 0, 0);
+        CharSequence hint = inputLayout.getHint();
+        if (hint != null) {
+            toggle.setContentDescription(hint);
+        }
+
+        LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(
+            0,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            1f
+        );
+        inputLayout.setLayoutParams(fieldParams);
+
+        int index = parent.indexOfChild(inputLayout);
+        parent.removeView(inputLayout);
+        wrapper.addView(toggle);
+        wrapper.addView(inputLayout);
+        parent.addView(wrapper, index);
+
+        ToggleBinding toggleBinding = new ToggleBinding(fieldId, toggle, inputLayout, dependsOnCustomMode);
+        toggleBindings.put(fieldId, toggleBinding);
+        toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (bindingToggleState) {
+                return;
+            }
+            if (!dependsOnCustomMode && isChecked && advancedExpanded) {
+                maybeRequestPhonePermissions();
+                populateAdvancedDefaultsIfNeeded();
+            }
+            updateFieldEnablement();
+        });
+    }
+
+    private TextInputLayout layoutOf(TextInputEditText editText) {
+        if (editText == null) {
+            return null;
+        }
+        ViewParent parent = editText.getParent();
+        while (parent != null) {
+            if (parent instanceof TextInputLayout) {
+                return (TextInputLayout) parent;
+            }
+            parent = parent.getParent();
+        }
+        return null;
+    }
+
+    private LinearLayout.LayoutParams asLinearLayoutParams(ViewGroup.LayoutParams params) {
+        if (params instanceof LinearLayout.LayoutParams) {
+            return new LinearLayout.LayoutParams((LinearLayout.LayoutParams) params);
+        }
+        if (params instanceof ViewGroup.MarginLayoutParams) {
+            return new LinearLayout.LayoutParams((ViewGroup.MarginLayoutParams) params);
+        }
+        return new LinearLayout.LayoutParams(params);
+    }
+
+    private void updateFieldEnablement() {
+        for (ToggleBinding toggleBinding : toggleBindings.values()) {
+            boolean enabled = toggleBinding.toggle.isChecked()
+                && (!toggleBinding.dependsOnCustomMode || customMode);
+            toggleBinding.inputLayout.setEnabled(enabled);
+            toggleBinding.inputLayout.setAlpha(toggleBinding.toggle.isChecked() ? 1f : 0.55f);
+            if (toggleBinding.inputLayout.getEditText() != null) {
+                toggleBinding.inputLayout.getEditText().setEnabled(enabled);
+            }
+        }
+
+        applyEditTextState(binding.inputBrand, ConfigManager.FIELD_BRAND, true);
+        applyEditTextState(binding.inputManufacturer, ConfigManager.FIELD_MANUFACTURER, true);
+        applyEditTextState(binding.inputModel, ConfigManager.FIELD_MODEL, true);
+        applyEditTextState(binding.inputDevice, ConfigManager.FIELD_DEVICE, true);
+        applyEditTextState(binding.inputProduct, ConfigManager.FIELD_PRODUCT, true);
+        applyEditTextState(binding.inputBoard, ConfigManager.FIELD_BOARD, true);
+        applyEditTextState(binding.inputHardware, ConfigManager.FIELD_HARDWARE, true);
+        applyEditTextState(binding.inputBoardPlatform, ConfigManager.FIELD_BOARD_PLATFORM, true);
+        applyEditTextState(binding.inputAndroidRelease, ConfigManager.FIELD_ANDROID_RELEASE, true);
+        applyEditTextState(binding.inputSdk, ConfigManager.FIELD_SDK, true);
+        applyEditTextState(binding.inputSecurityPatch, ConfigManager.FIELD_SECURITY_PATCH, true);
+        applyEditTextState(binding.inputBuildId, ConfigManager.FIELD_BUILD_ID, true);
+        applyEditTextState(binding.inputBuildIncremental, ConfigManager.FIELD_BUILD_INCREMENTAL, true);
+        applyEditTextState(binding.inputFingerprint, ConfigManager.FIELD_FINGERPRINT, true);
+        applyEditTextState(binding.inputScreenWidth, ConfigManager.FIELD_SCREEN_WIDTH, true);
+        applyEditTextState(binding.inputScreenHeight, ConfigManager.FIELD_SCREEN_HEIGHT, true);
+        applyEditTextState(binding.inputScreenDensity, ConfigManager.FIELD_SCREEN_DENSITY, true);
+        applyEditTextState(binding.inputOperatorAlpha, ConfigManager.FIELD_OPERATOR_ALPHA, true);
+        applyEditTextState(binding.inputOperatorNumeric, ConfigManager.FIELD_OPERATOR_NUMERIC, true);
+        applyEditTextState(binding.inputSimCountry, ConfigManager.FIELD_SIM_COUNTRY, true);
+        applyEditTextState(binding.inputTimezone, ConfigManager.FIELD_TIMEZONE, true);
+
+        applyEditTextState(binding.inputAdvancedImei, ConfigManager.FIELD_IMEI, false);
+        applyEditTextState(binding.inputAdvancedMeid, ConfigManager.FIELD_MEID, false);
+        applyEditTextState(binding.inputAdvancedImsi, ConfigManager.FIELD_IMSI, false);
+        applyEditTextState(binding.inputAdvancedIccid, ConfigManager.FIELD_ICCID, false);
+        applyEditTextState(binding.inputAdvancedPhoneNumber, ConfigManager.FIELD_PHONE_NUMBER, false);
+        applyEditTextState(binding.inputAdvancedGaid, ConfigManager.FIELD_GAID, false);
+        applyEditTextState(binding.inputAdvancedGsfId, ConfigManager.FIELD_GSF_ID, false);
+        applyEditTextState(binding.inputAdvancedMediaDrmId, ConfigManager.FIELD_MEDIA_DRM_ID, false);
+        applyEditTextState(binding.inputAdvancedAppSetId, ConfigManager.FIELD_APP_SET_ID, false);
+    }
+
+    private void applyEditTextState(TextInputEditText editText, String fieldId, boolean dependsOnCustomMode) {
+        if (editText == null) {
+            return;
+        }
+        ToggleBinding toggleBinding = toggleBindings.get(fieldId);
+        boolean checked = toggleBinding == null || toggleBinding.toggle.isChecked();
+        boolean enabled = checked && (!dependsOnCustomMode || customMode);
+        editText.setEnabled(enabled);
+        editText.setAlpha(checked ? 1f : 0.55f);
+    }
+
+    private int dp(int value) {
+        return Math.round(TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            value,
+            requireContext().getResources().getDisplayMetrics()
+        ));
     }
 
     private void putOptional(Map<String, String> target, String key, String value) {
@@ -656,6 +815,20 @@ public class DeviceSettingsFragment extends Fragment {
             this.selectedPresetId = selectedPresetId;
             this.customMode = customMode;
             this.extraProperties = new LinkedHashMap<>(extraProperties);
+        }
+    }
+
+    private static class ToggleBinding {
+        final String fieldId;
+        final MaterialCheckBox toggle;
+        final TextInputLayout inputLayout;
+        final boolean dependsOnCustomMode;
+
+        ToggleBinding(String fieldId, MaterialCheckBox toggle, TextInputLayout inputLayout, boolean dependsOnCustomMode) {
+            this.fieldId = fieldId;
+            this.toggle = toggle;
+            this.inputLayout = inputLayout;
+            this.dependsOnCustomMode = dependsOnCustomMode;
         }
     }
 }

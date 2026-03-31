@@ -46,6 +46,9 @@
     <string name="module_status_inactive">Inactive</string>
     <string name="home_scope_hint">Add target apps to LSPosed scope, save the profile, and restart those apps to pick up new values.</string>
     <string name="preset_unknown">Custom snapshot</string>
+    <string name="preset_current_device_brand">Current</string>
+    <string name="preset_current_device_model">Device</string>
+    <string name="preset_current_device_summary">Live values from this device</string>
     <string name="config_source_internal">App private storage</string>
     <string name="config_source_fallback">External storage fallback</string>
     <string name="open_real_info">Open App Info</string>
@@ -58,6 +61,10 @@
     <string name="settings_real_info_title">App Info</string>
     <string name="settings_preset_source_title">Preset source URL</string>
     <string name="settings_preset_source_message">Enter a GitHub repository URL that contains preset JSON files.</string>
+    <string name="settings_preset_source_option_default">Default</string>
+    <string name="settings_preset_source_option_custom">Custom</string>
+    <string name="settings_preset_source_input_hint">GitHub repository URL</string>
+    <string name="settings_preset_source_required">Enter a custom preset source URL.</string>
     <string name="settings_preset_source_updated">Preset source updated.</string>
     <string name="settings_preset_source_empty">No remote presets were found at the current source URL.</string>
     <string name="settings_preset_source_failed">Failed to update the preset source.</string>
@@ -88,9 +95,14 @@
     <string name="settings_resolution_title">Apply spoofed screen resolution</string>
     <string name="settings_resolution_summary">Off by default. Some apps may break when forced.</string>
     <string name="settings_safe_mode_title">Safe Mode</string>
-    <string name="settings_safe_mode_summary_disabled">Disabled</string>
+    <string name="settings_safe_mode_summary_disabled">Reduce crashes by disabling selected spoof options.</string>
     <string name="settings_safe_mode_summary_count">%1$d apps protected</string>
     <string name="settings_safe_mode_failed">Failed to update Safe Mode.</string>
+    <string name="safe_mode_empty">No installed apps found.</string>
+    <string name="safe_mode_system_framework">System Framework</string>
+    <string name="safe_mode_hide_system_apps">Hide system apps</string>
+    <string name="safe_mode_version_format">Version: %1$s</string>
+    <string name="safe_mode_version_unknown">Version: unknown</string>
     <string name="settings_section_preset_mode">Preset and mode</string>
     <string name="settings_section_identity">Identity</string>
     <string name="settings_section_build_display">Build and display</string>

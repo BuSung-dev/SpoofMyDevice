@@ -65,7 +65,9 @@ public class AppSetIdHooks {
                 new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        param.setResult(1); // APP scope
+                        if (ConfigManager.getAppSetId() != null) {
+                            param.setResult(1); // APP scope
+                        }
                     }
                 });
         } catch (Exception e) {

@@ -44,6 +44,9 @@
     <string name="module_status_active">有効</string>
     <string name="module_status_inactive">無効</string>
     <string name="preset_unknown">カスタムスナップショット</string>
+    <string name="preset_current_device_brand">現在</string>
+    <string name="preset_current_device_model">端末</string>
+    <string name="preset_current_device_summary">この端末の実際の値を使用します。</string>
     <string name="open_real_info">アプリ情報を開く</string>
     <string name="settings_theme_title">テーマ</string>
     <string name="settings_appearance_title">外観</string>
@@ -53,6 +56,10 @@
     <string name="settings_real_info_title">アプリ情報</string>
     <string name="settings_preset_source_title">プリセットソース URL</string>
     <string name="settings_preset_source_message">プリセット JSON ファイルを含む GitHub リポジトリ URL を入力してください。</string>
+    <string name="settings_preset_source_option_default">デフォルト</string>
+    <string name="settings_preset_source_option_custom">カスタム</string>
+    <string name="settings_preset_source_input_hint">GitHub リポジトリ URL</string>
+    <string name="settings_preset_source_required">カスタムのプリセットソース URL を入力してください。</string>
     <string name="settings_preset_source_updated">プリセットソースを更新しました。</string>
     <string name="settings_preset_source_empty">現在のソース URL にリモートプリセットが見つかりませんでした。</string>
     <string name="settings_preset_source_failed">プリセットソースの更新に失敗しました。</string>
@@ -82,10 +89,11 @@
     <string name="settings_choose_color_style">カラースタイルを選択</string>
     <string name="settings_resolution_title">偽装解像度を適用</string>
     <string name="settings_resolution_summary">デフォルトではオフです。強制すると一部のアプリが壊れる場合があります。</string>
-    <string name="settings_safe_mode_title">Safe Mode</string>
-    <string name="settings_safe_mode_summary_disabled">無効</string>
+    <string name="settings_safe_mode_title">セーフモード</string>
+    <string name="settings_safe_mode_summary_disabled">一部のスプーフィング項目を無効化してクラッシュを減らします。</string>
     <string name="settings_safe_mode_summary_count">%1$d個のアプリを保護中</string>
-    <string name="settings_safe_mode_failed">Safe Mode の更新に失敗しました。</string>
+    <string name="settings_safe_mode_failed">セーフモードの更新に失敗しました。</string>
+    <string name="safe_mode_hide_system_apps">システムアプリを隠す</string>
     <string name="settings_section_preset_mode">プリセットとモード</string>
     <string name="settings_section_identity">端末情報</string>
     <string name="settings_section_build_display">ビルドとディスプレイ</string>

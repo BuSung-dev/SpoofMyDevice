@@ -62,16 +62,34 @@ public class BuildHooks {
     }
 
     private static void applyBuildFields(Class<?> buildClass) {
-        setStaticString(buildClass, "BRAND", ConfigManager.getBuildBrand());
-        setStaticString(buildClass, "MANUFACTURER", ConfigManager.getBuildManufacturer());
-        setStaticString(buildClass, "MODEL", ConfigManager.getBuildModel());
-        setStaticString(buildClass, "DEVICE", ConfigManager.getBuildDevice());
-        setStaticString(buildClass, "PRODUCT", ConfigManager.getBuildProduct());
-        setStaticString(buildClass, "BOARD", ConfigManager.getBuildBoard());
-        setStaticString(buildClass, "HARDWARE", ConfigManager.getBuildHardware());
-        setStaticString(buildClass, "FINGERPRINT", ConfigManager.getBuildFingerprint());
-        setStaticString(buildClass, "ID", ConfigManager.getBuildId());
-        setStaticString(buildClass, "DISPLAY", ConfigManager.getBuildDisplay());
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BRAND)) {
+            setStaticString(buildClass, "BRAND", ConfigManager.getBuildBrand());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_MANUFACTURER)) {
+            setStaticString(buildClass, "MANUFACTURER", ConfigManager.getBuildManufacturer());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_MODEL)) {
+            setStaticString(buildClass, "MODEL", ConfigManager.getBuildModel());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_DEVICE)) {
+            setStaticString(buildClass, "DEVICE", ConfigManager.getBuildDevice());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_PRODUCT)) {
+            setStaticString(buildClass, "PRODUCT", ConfigManager.getBuildProduct());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BOARD)) {
+            setStaticString(buildClass, "BOARD", ConfigManager.getBuildBoard());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_HARDWARE)) {
+            setStaticString(buildClass, "HARDWARE", ConfigManager.getBuildHardware());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_FINGERPRINT)) {
+            setStaticString(buildClass, "FINGERPRINT", ConfigManager.getBuildFingerprint());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BUILD_ID)) {
+            setStaticString(buildClass, "ID", ConfigManager.getBuildId());
+            setStaticString(buildClass, "DISPLAY", ConfigManager.getBuildDisplay());
+        }
         setStaticString(buildClass, "TAGS", ConfigManager.getBuildTags());
         setStaticString(buildClass, "TYPE", ConfigManager.getBuildType());
         setStaticString(buildClass, "BOOTLOADER", ConfigManager.getBuildBootloader());
@@ -88,13 +106,21 @@ public class BuildHooks {
     }
 
     private static void applyVersionFields(Class<?> versionClass) {
-        setStaticString(versionClass, "RELEASE", ConfigManager.getBuildVersionRelease());
-        setStaticString(versionClass, "RELEASE_OR_CODENAME", ConfigManager.getBuildVersionRelease());
-        setStaticString(versionClass, "CODENAME", ConfigManager.getBuildVersionCodename());
-        setStaticString(versionClass, "INCREMENTAL", ConfigManager.getBuildVersionIncremental());
-        setStaticString(versionClass, "SECURITY_PATCH", ConfigManager.getBuildVersionSecurityPatch());
-        setStaticInt(versionClass, "SDK_INT", ConfigManager.getBuildVersionSdk());
-        setStaticInt(versionClass, "DEVICE_INITIAL_SDK_INT", ConfigManager.getBuildVersionSdk());
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_ANDROID_RELEASE)) {
+            setStaticString(versionClass, "RELEASE", ConfigManager.getBuildVersionRelease());
+            setStaticString(versionClass, "RELEASE_OR_CODENAME", ConfigManager.getBuildVersionRelease());
+            setStaticString(versionClass, "CODENAME", ConfigManager.getBuildVersionCodename());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BUILD_INCREMENTAL)) {
+            setStaticString(versionClass, "INCREMENTAL", ConfigManager.getBuildVersionIncremental());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_SECURITY_PATCH)) {
+            setStaticString(versionClass, "SECURITY_PATCH", ConfigManager.getBuildVersionSecurityPatch());
+        }
+        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_SDK)) {
+            setStaticInt(versionClass, "SDK_INT", ConfigManager.getBuildVersionSdk());
+            setStaticInt(versionClass, "DEVICE_INITIAL_SDK_INT", ConfigManager.getBuildVersionSdk());
+        }
     }
 
     private static void hookGetSerial(Class<?> buildClass) {

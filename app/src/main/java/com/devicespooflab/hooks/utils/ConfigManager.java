@@ -38,6 +38,38 @@ public class ConfigManager {
     public static final String KEY_SPOOF_MEDIA_DRM_ID = "device.media_drm_id";
     public static final String KEY_SPOOF_APP_SET_ID = "device.app_set_id";
     public static final String KEY_SAFE_MODE_PACKAGES = "safe_mode.packages";
+    public static final String KEY_SPOOF_TOGGLE_PREFIX = "spoof.enabled.";
+
+    public static final String FIELD_BRAND = "brand";
+    public static final String FIELD_MANUFACTURER = "manufacturer";
+    public static final String FIELD_MODEL = "model";
+    public static final String FIELD_DEVICE = "device";
+    public static final String FIELD_PRODUCT = "product";
+    public static final String FIELD_BOARD = "board";
+    public static final String FIELD_HARDWARE = "hardware";
+    public static final String FIELD_BOARD_PLATFORM = "board_platform";
+    public static final String FIELD_ANDROID_RELEASE = "android_release";
+    public static final String FIELD_SDK = "sdk";
+    public static final String FIELD_SECURITY_PATCH = "security_patch";
+    public static final String FIELD_BUILD_ID = "build_id";
+    public static final String FIELD_BUILD_INCREMENTAL = "build_incremental";
+    public static final String FIELD_FINGERPRINT = "fingerprint";
+    public static final String FIELD_SCREEN_WIDTH = "screen_width";
+    public static final String FIELD_SCREEN_HEIGHT = "screen_height";
+    public static final String FIELD_SCREEN_DENSITY = "screen_density";
+    public static final String FIELD_OPERATOR_ALPHA = "operator_alpha";
+    public static final String FIELD_OPERATOR_NUMERIC = "operator_numeric";
+    public static final String FIELD_SIM_COUNTRY = "sim_country";
+    public static final String FIELD_TIMEZONE = "timezone";
+    public static final String FIELD_IMEI = "imei";
+    public static final String FIELD_MEID = "meid";
+    public static final String FIELD_IMSI = "imsi";
+    public static final String FIELD_ICCID = "iccid";
+    public static final String FIELD_PHONE_NUMBER = "phone_number";
+    public static final String FIELD_GAID = "gaid";
+    public static final String FIELD_GSF_ID = "gsf_id";
+    public static final String FIELD_MEDIA_DRM_ID = "media_drm_id";
+    public static final String FIELD_APP_SET_ID = "app_set_id";
 
     private static final String[] CONFIG_PATHS = {
         "/data/data/com.spoofmydevice/files/device_profile.conf",
@@ -351,6 +383,10 @@ public class ConfigManager {
     }
 
     public static String getSystemProperty(String key, String defaultValue) {
+        String fieldId = getToggleFieldForSystemProperty(key);
+        if (fieldId != null && !isSpoofEnabled(fieldId)) {
+            return defaultValue;
+        }
         String value = getConfigValue(key);
         return (value != null) ? value : defaultValue;
     }
@@ -445,23 +481,133 @@ public class ConfigManager {
         return false;
     }
 
+    public static String getTogglePropertyKey(String fieldId) {
+        return KEY_SPOOF_TOGGLE_PREFIX + fieldId;
+    }
+
+    public static boolean isSpoofEnabled(String fieldId) {
+        if (fieldId == null || fieldId.trim().isEmpty()) {
+            return true;
+        }
+        String explicit = getOptionalConfigValue(getTogglePropertyKey(fieldId));
+        if (explicit == null) {
+            return true;
+        }
+        return explicit.equals("1") || explicit.equalsIgnoreCase("true");
+    }
+
+    public static String getToggleFieldForSystemProperty(String key) {
+        if (key == null || key.isEmpty()) {
+            return null;
+        }
+        if (key.equals("ro.product.brand") || key.endsWith(".brand")) {
+            return FIELD_BRAND;
+        }
+        if (key.equals("ro.product.manufacturer") || key.endsWith(".manufacturer")) {
+            return FIELD_MANUFACTURER;
+        }
+        if (key.equals("ro.product.model") || key.endsWith(".model")) {
+            return FIELD_MODEL;
+        }
+        if (key.equals("ro.product.device") || key.equals("ro.build.device") || key.endsWith(".device")) {
+            return FIELD_DEVICE;
+        }
+        if (key.equals("ro.product.name") || key.equals("ro.build.product") || key.endsWith(".name")) {
+            return FIELD_PRODUCT;
+        }
+        if (key.equals("ro.product.board")) {
+            return FIELD_BOARD;
+        }
+        if (key.equals("ro.hardware") || key.equals("ro.boot.hardware")) {
+            return FIELD_HARDWARE;
+        }
+        if (key.equals("ro.board.platform")) {
+            return FIELD_BOARD_PLATFORM;
+        }
+        if (key.equals("ro.build.id") || key.equals("ro.build.display.id") || key.equals("ro.product.build.id")) {
+            return FIELD_BUILD_ID;
+        }
+        if (key.equals("ro.build.version.incremental") || key.equals("ro.product.build.version.incremental")) {
+            return FIELD_BUILD_INCREMENTAL;
+        }
+        if (key.equals("ro.build.version.release")
+            || key.equals("ro.build.version.release_or_codename")
+            || key.equals("ro.build.version.release_or_preview_display")
+            || key.equals("ro.product.build.version.release")
+            || key.equals("ro.product.build.version.release_or_codename")
+            || key.endsWith(".build.version.release")
+            || key.endsWith(".build.version.release_or_codename")) {
+            return FIELD_ANDROID_RELEASE;
+        }
+        if (key.equals("ro.build.version.sdk")
+            || key.equals("ro.product.build.version.sdk")
+            || key.endsWith(".build.version.sdk")) {
+            return FIELD_SDK;
+        }
+        if (key.equals("ro.build.version.security_patch")) {
+            return FIELD_SECURITY_PATCH;
+        }
+        if (key.equals("ro.build.fingerprint")
+            || key.equals("ro.product.build.fingerprint")
+            || key.endsWith(".build.fingerprint")) {
+            return FIELD_FINGERPRINT;
+        }
+        if (key.equals("screen.width")) {
+            return FIELD_SCREEN_WIDTH;
+        }
+        if (key.equals("screen.height")) {
+            return FIELD_SCREEN_HEIGHT;
+        }
+        if (key.equals("screen.density") || key.equals("ro.sf.lcd_density")) {
+            return FIELD_SCREEN_DENSITY;
+        }
+        if (key.equals("gsm.operator.alpha") || key.equals("gsm.sim.operator.alpha")) {
+            return FIELD_OPERATOR_ALPHA;
+        }
+        if (key.equals("gsm.operator.numeric") || key.equals("gsm.sim.operator.numeric")) {
+            return FIELD_OPERATOR_NUMERIC;
+        }
+        if (key.equals("gsm.sim.operator.iso-country")) {
+            return FIELD_SIM_COUNTRY;
+        }
+        if (key.equals("persist.sys.timezone")) {
+            return FIELD_TIMEZONE;
+        }
+        return null;
+    }
+
     public static String getIMEI() {
+        if (!isSpoofEnabled(FIELD_IMEI)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_IMEI);
     }
 
     public static String getMEID() {
+        if (!isSpoofEnabled(FIELD_MEID)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_MEID);
     }
 
     public static String getIMSI() {
+        if (!isSpoofEnabled(FIELD_IMSI)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_IMSI);
     }
 
     public static String getICCID() {
+        if (!isSpoofEnabled(FIELD_ICCID)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_ICCID);
     }
 
     public static String getPhoneNumber() {
+        if (!isSpoofEnabled(FIELD_PHONE_NUMBER)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_PHONE_NUMBER);
     }
 
@@ -470,10 +616,16 @@ public class ConfigManager {
     }
 
     public static String getGAID() {
+        if (!isSpoofEnabled(FIELD_GAID)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_GAID);
     }
 
     public static String getGSFId() {
+        if (!isSpoofEnabled(FIELD_GSF_ID)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_GSF_ID);
     }
 
@@ -482,6 +634,9 @@ public class ConfigManager {
     }
 
     public static byte[] getMediaDrmId() {
+        if (!isSpoofEnabled(FIELD_MEDIA_DRM_ID)) {
+            return null;
+        }
         String hex = getOptionalConfigValue(KEY_SPOOF_MEDIA_DRM_ID);
         if (hex == null) {
             return null;
@@ -490,6 +645,9 @@ public class ConfigManager {
     }
 
     public static String getAppSetId() {
+        if (!isSpoofEnabled(FIELD_APP_SET_ID)) {
+            return null;
+        }
         return getOptionalConfigValue(KEY_SPOOF_APP_SET_ID);
     }
 

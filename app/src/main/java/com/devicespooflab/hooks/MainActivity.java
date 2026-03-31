@@ -324,6 +324,56 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void updateSafeModePackagesAsync(Set<String> packageNames) {
+        ConfigFileManager.LoadedConfig previousConfig = loadedConfig;
+        Map<String, String> extraProperties = new LinkedHashMap<>(previousConfig.getExtraProperties());
+        if (packageNames == null || packageNames.isEmpty()) {
+            extraProperties.remove(ConfigManager.KEY_SAFE_MODE_PACKAGES);
+        } else {
+            extraProperties.put(
+                ConfigManager.KEY_SAFE_MODE_PACKAGES,
+                String.join(",", new LinkedHashSet<>(packageNames))
+            );
+        }
+
+        ConfigFileManager.LoadedConfig optimisticConfig = new ConfigFileManager.LoadedConfig(
+            previousConfig.getConfigFile(),
+            previousConfig.getProfile(),
+            extraProperties,
+            previousConfig.getSelectedPresetId(),
+            previousConfig.isCustomMode()
+        );
+        loadedConfig = optimisticConfig;
+        if (appSettingsFragment != null) {
+            appSettingsFragment.refreshFromHost();
+        }
+
+        new Thread(() -> {
+            try {
+                ConfigFileManager.LoadedConfig savedConfig = configFileManager.save(
+                    this,
+                    optimisticConfig.getProfile(),
+                    extraProperties,
+                    optimisticConfig.getSelectedPresetId(),
+                    optimisticConfig.isCustomMode()
+                );
+                runOnUiThread(() -> loadedConfig = savedConfig);
+            } catch (Exception exception) {
+                runOnUiThread(() -> {
+                    loadedConfig = previousConfig;
+                    if (appSettingsFragment != null) {
+                        appSettingsFragment.refreshFromHost();
+                    }
+                    Snackbar.make(
+                        binding.getRoot(),
+                        getString(R.string.settings_safe_mode_failed) + " " + exception.getMessage(),
+                        Snackbar.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "spoofmydevice-safe-mode-save").start();
+    }
+
     public boolean isScreenMetricsSpoofEnabled() {
         Map<String, String> extraProperties = loadedConfig.getExtraProperties();
         String value = extraProperties.get(ConfigManager.KEY_APPLY_SCREEN_METRICS);
@@ -462,6 +512,12 @@ public class MainActivity extends AppCompatActivity {
             }
 
             runOnUiThread(() -> {
+                if (arePresetsEquivalent(presets, remotePresets)) {
+                    if (userInitiated) {
+                        Snackbar.make(binding.getRoot(), R.string.settings_preset_source_updated, Snackbar.LENGTH_SHORT).show();
+                    }
+                    return;
+                }
                 presets = remotePresets;
                 if (settingsFragment != null) {
                     settingsFragment.refreshFromHost(true);
@@ -477,5 +533,41 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }, "spoofmydevice-preset-sync").start();
+    }
+
+    private boolean arePresetsEquivalent(List<DevicePreset> left, List<DevicePreset> right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null || left.size() != right.size()) {
+            return false;
+        }
+        for (int index = 0; index < left.size(); index++) {
+            DevicePreset leftPreset = left.get(index);
+            DevicePreset rightPreset = right.get(index);
+            if (leftPreset == null || rightPreset == null) {
+                return false;
+            }
+            if (!safeEquals(leftPreset.getId(), rightPreset.getId())) {
+                return false;
+            }
+            if (!safeEquals(leftPreset.getBrandLabel(), rightPreset.getBrandLabel())) {
+                return false;
+            }
+            if (!safeEquals(leftPreset.getModelLabel(), rightPreset.getModelLabel())) {
+                return false;
+            }
+            if (!safeEquals(leftPreset.getSummary(), rightPreset.getSummary())) {
+                return false;
+            }
+            if (!leftPreset.getProfile().matchesPreset(rightPreset.getProfile())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean safeEquals(String left, String right) {
+        return left == null ? right == null : left.equals(right);
     }
 }

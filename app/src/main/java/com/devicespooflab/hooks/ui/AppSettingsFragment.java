@@ -1,32 +1,32 @@
 package com.devicespooflab.hooks.ui;
 
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
+import android.widget.RadioGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
 import com.devicespooflab.hooks.MainActivity;
 import com.devicespooflab.hooks.R;
+import com.devicespooflab.hooks.SafeModeAppsActivity;
 import com.devicespooflab.hooks.data.AppSettingsStore;
 import com.devicespooflab.hooks.databinding.FragmentAppSettingsBinding;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class AppSettingsFragment extends Fragment {
@@ -38,6 +38,23 @@ public class AppSettingsFragment extends Fragment {
     private List<Option> themeOptions;
     private List<Option> languageOptions;
     private List<Option> colorStyleOptions;
+    private final ActivityResultLauncher<Intent> safeModePickerLauncher =
+        registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) {
+                return;
+            }
+            if (!(requireActivity() instanceof MainActivity)) {
+                return;
+            }
+            ArrayList<String> packages = result.getData().getStringArrayListExtra(
+                SafeModeAppsActivity.EXTRA_RESULT_SELECTED_PACKAGES
+            );
+            LinkedHashSet<String> selectedPackages = new LinkedHashSet<>();
+            if (packages != null) {
+                selectedPackages.addAll(packages);
+            }
+            ((MainActivity) requireActivity()).updateSafeModePackagesAsync(selectedPackages);
+        });
 
     @Nullable
     @Override
@@ -131,7 +148,7 @@ public class AppSettingsFragment extends Fragment {
         binding.themeRow.setOnClickListener(v -> showThemeDialog());
         binding.languageRow.setOnClickListener(v -> showLanguageDialog());
         binding.colorStyleRow.setOnClickListener(v -> showColorStyleDialog());
-        binding.safeModeRow.setOnClickListener(v -> showSafeModeDialog());
+        binding.safeModeRow.setOnClickListener(v -> openSafeModePicker());
         binding.systemColorsRow.setOnClickListener(v -> {
             systemColorsToggleFromRow = true;
             binding.systemColorsSwitch.toggle();
@@ -198,58 +215,72 @@ public class AppSettingsFragment extends Fragment {
             return;
         }
         MainActivity activity = (MainActivity) requireActivity();
-        EditText input = new EditText(requireContext());
-        input.setText(activity.getPresetSourceUrl());
-        input.setSingleLine(true);
-        input.setSelectAllOnFocus(true);
+        View dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_preset_source, null, false);
+        RadioGroup radioGroup = dialogView.findViewById(R.id.preset_source_radio_group);
+        TextInputLayout inputLayout = dialogView.findViewById(R.id.preset_source_input_layout);
+        TextInputEditText input = dialogView.findViewById(R.id.preset_source_input);
 
-        new MaterialAlertDialogBuilder(requireContext())
+        String currentUrl = activity.getPresetSourceUrl();
+        boolean usingDefault = AppSettingsStore.DEFAULT_PRESET_SOURCE_URL.equals(currentUrl);
+        input.setText(usingDefault ? "" : currentUrl);
+        radioGroup.check(usingDefault ? R.id.preset_source_option_default : R.id.preset_source_option_custom);
+        updatePresetSourceInputState(inputLayout, input, !usingDefault);
+        radioGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            boolean customSelected = checkedId == R.id.preset_source_option_custom;
+            updatePresetSourceInputState(inputLayout, input, customSelected);
+        });
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.settings_preset_source_title)
-            .setMessage(R.string.settings_preset_source_message)
-            .setView(input)
-            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                activity.updatePresetSourceUrl(input.getText() == null ? "" : input.getText().toString());
-                refreshFromHost();
-            })
+            .setView(dialogView)
+            .setPositiveButton(android.R.string.ok, null)
             .setNegativeButton(android.R.string.cancel, null)
             .show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            boolean customSelected = radioGroup.getCheckedRadioButtonId() == R.id.preset_source_option_custom;
+            inputLayout.setError(null);
+            String nextValue;
+            if (customSelected) {
+                String customUrl = input.getText() == null ? "" : input.getText().toString().trim();
+                if (customUrl.isEmpty()) {
+                    inputLayout.setError(getString(R.string.settings_preset_source_required));
+                    input.requestFocus();
+                    return;
+                }
+                nextValue = customUrl;
+            } else {
+                nextValue = AppSettingsStore.DEFAULT_PRESET_SOURCE_URL;
+            }
+
+            activity.updatePresetSourceUrl(nextValue);
+            refreshFromHost();
+            dialog.dismiss();
+        });
     }
 
-    private void showSafeModeDialog() {
+    private void updatePresetSourceInputState(TextInputLayout inputLayout, TextInputEditText input, boolean enabled) {
+        inputLayout.setEnabled(enabled);
+        input.setEnabled(enabled);
+        input.setFocusable(enabled);
+        input.setFocusableInTouchMode(enabled);
+        input.setClickable(enabled);
+        if (enabled) {
+            input.requestFocus();
+        } else {
+            inputLayout.setError(null);
+        }
+    }
+
+    private void openSafeModePicker() {
         if (!(requireActivity() instanceof MainActivity)) {
             return;
         }
         MainActivity activity = (MainActivity) requireActivity();
-        List<AppEntry> apps = loadLaunchableApps();
-        if (apps.isEmpty()) {
-            return;
-        }
-
-        Set<String> selectedPackages = new LinkedHashSet<>(activity.getSafeModePackages());
-        CharSequence[] labels = new CharSequence[apps.size()];
-        boolean[] checked = new boolean[apps.size()];
-        for (int i = 0; i < apps.size(); i++) {
-            AppEntry app = apps.get(i);
-            labels[i] = app.label + "\n" + app.packageName;
-            checked[i] = selectedPackages.contains(app.packageName);
-        }
-
-        new MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.settings_safe_mode_title)
-            .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
-                String packageName = apps.get(which).packageName;
-                if (isChecked) {
-                    selectedPackages.add(packageName);
-                } else {
-                    selectedPackages.remove(packageName);
-                }
-            })
-            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                activity.updateSafeModePackages(selectedPackages);
-                refreshFromHost();
-            })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
+        safeModePickerLauncher.launch(
+            SafeModeAppsActivity.createIntent(requireContext(), activity.getSafeModePackages())
+        );
     }
 
     private void showColorStyleDialog() {
@@ -339,43 +370,12 @@ public class AppSettingsFragment extends Fragment {
         requireActivity().recreate();
     }
 
-    private List<AppEntry> loadLaunchableApps() {
-        PackageManager packageManager = requireContext().getPackageManager();
-        Intent intent = new Intent(Intent.ACTION_MAIN, null);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> resolvedApps = packageManager.queryIntentActivities(intent, 0);
-        Map<String, AppEntry> entries = new LinkedHashMap<>();
-        for (ResolveInfo resolveInfo : resolvedApps) {
-            if (resolveInfo.activityInfo == null) {
-                continue;
-            }
-            String packageName = resolveInfo.activityInfo.packageName;
-            String label = String.valueOf(resolveInfo.loadLabel(packageManager));
-            if (!entries.containsKey(packageName)) {
-                entries.put(packageName, new AppEntry(packageName, label));
-            }
-        }
-        List<AppEntry> result = new ArrayList<>(entries.values());
-        Collections.sort(result, Comparator.comparing(entry -> entry.label.toLowerCase()));
-        return result;
-    }
-
     private static final class Option {
         private final String id;
         private final String label;
 
         private Option(String id, String label) {
             this.id = id;
-            this.label = label;
-        }
-    }
-
-    private static final class AppEntry {
-        private final String packageName;
-        private final String label;
-
-        private AppEntry(String packageName, String label) {
-            this.packageName = packageName;
             this.label = label;
         }
     }
