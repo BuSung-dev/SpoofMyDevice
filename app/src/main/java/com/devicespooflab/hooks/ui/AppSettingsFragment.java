@@ -127,7 +127,8 @@ public class AppSettingsFragment extends Fragment {
             new Option(AppSettingsStore.LANGUAGE_DEFAULT, getString(R.string.language_default)),
             new Option(AppSettingsStore.LANGUAGE_ENGLISH, getString(R.string.language_english)),
             new Option(AppSettingsStore.LANGUAGE_KOREAN, getString(R.string.language_korean)),
-            new Option(AppSettingsStore.LANGUAGE_JAPANESE, getString(R.string.language_japanese))
+            new Option(AppSettingsStore.LANGUAGE_JAPANESE, getString(R.string.language_japanese)),
+            new Option(AppSettingsStore.LANGUAGE_CHINESE_SIMPLIFIED, getString(R.string.language_chinese))
         );
         colorStyleOptions = Arrays.asList(
             new Option(AppSettingsStore.COLOR_STYLE_MINT, getString(R.string.color_style_mint)),

@@ -84,6 +84,7 @@
     <string name="language_english">English</string>
     <string name="language_korean">한국어</string>
     <string name="language_japanese">日本語</string>
+    <string name="language_chinese">简体中文</string>
     <string name="settings_theme_helper">Choose how the companion app should render.</string>
     <string name="settings_language_helper">Default follows the system language. You can also force English, Korean, or Japanese.</string>
     <string name="settings_theme_summary">Current: %1$s</string>

@@ -20,6 +20,7 @@ public final class AppSettingsStore {
     public static final String LANGUAGE_ENGLISH = "en";
     public static final String LANGUAGE_KOREAN = "ko";
     public static final String LANGUAGE_JAPANESE = "ja";
+    public static final String LANGUAGE_CHINESE_SIMPLIFIED = "zh-CN";
 
     public static final String COLOR_STYLE_MINT = "mint";
     public static final String COLOR_STYLE_BLUE = "blue";
@@ -133,6 +134,9 @@ public final class AppSettingsStore {
             case LANGUAGE_JAPANESE:
                 locales = LocaleListCompat.forLanguageTags("ja");
                 break;
+            case LANGUAGE_CHINESE_SIMPLIFIED:
+                locales = LocaleListCompat.forLanguageTags("zh-CN");
+                break;
             case LANGUAGE_DEFAULT:
             default:
                 locales = LocaleListCompat.getEmptyLocaleList();
@@ -164,6 +168,9 @@ public final class AppSettingsStore {
         }
         if (LANGUAGE_JAPANESE.equals(value)) {
             return LANGUAGE_JAPANESE;
+        }
+        if (LANGUAGE_CHINESE_SIMPLIFIED.equals(value)) {
+            return LANGUAGE_CHINESE_SIMPLIFIED;
         }
         return LANGUAGE_DEFAULT;
     }
