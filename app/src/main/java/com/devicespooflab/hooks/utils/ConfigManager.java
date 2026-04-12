@@ -1,10 +1,20 @@
 package com.devicespooflab.hooks.utils;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.os.Bundle;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.SystemClock;
+import android.os.Handler;
+import android.os.HandlerThread;
 
 import com.devicespooflab.hooks.ConfigProvider;
+import com.devicespooflab.hooks.ConfigBridgeReceiver;
+import com.devicespooflab.hooks.data.ConfigFileManager;
+
+import de.robv.android.xposed.XSharedPreferences;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -13,8 +23,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Manages configuration for spoofed values.
@@ -72,6 +85,9 @@ public class ConfigManager {
     public static final String FIELD_APP_SET_ID = "app_set_id";
 
     private static final String[] CONFIG_PATHS = {
+        "/data/local/tmp/spoofmydevice_device_profile.conf",
+        "/data/user/0/com.spoofmydevice/files/device_profile.conf",
+        "/data/user/0/com.devicespooflab.hooks/files/device_profile.conf",
         "/data/data/com.spoofmydevice/files/device_profile.conf",
         "/data/data/com.devicespooflab.hooks/files/device_profile.conf",
         "/sdcard/SpoofMyDevice/device_profile.conf",
@@ -127,6 +143,26 @@ public class ConfigManager {
     }
 
     private static LoadedProperties readConfig(Context preferredContext) {
+        Map<String, String> configFromBridgeReceiver = readFromBridgeReceiver(preferredContext);
+        if (!configFromBridgeReceiver.isEmpty()) {
+            return new LoadedProperties(configFromBridgeReceiver, false);
+        }
+
+        Map<String, String> configFromRootMirror = readFromRootMirrorFile(preferredContext);
+        if (!configFromRootMirror.isEmpty()) {
+            return new LoadedProperties(configFromRootMirror, false);
+        }
+
+        Map<String, String> configFromReadableMirror = readFromReadableMirrorFile(preferredContext);
+        if (!configFromReadableMirror.isEmpty()) {
+            return new LoadedProperties(configFromReadableMirror, false);
+        }
+
+        Map<String, String> configFromXSharedPreferences = readFromXSharedPreferences(preferredContext);
+        if (!configFromXSharedPreferences.isEmpty()) {
+            return new LoadedProperties(configFromXSharedPreferences, false);
+        }
+
         Map<String, String> configFromProvider = readFromProvider(preferredContext);
         if (!configFromProvider.isEmpty()) {
             return new LoadedProperties(configFromProvider, false);
@@ -155,9 +191,216 @@ public class ConfigManager {
                     return parseConfigStream(inputStream);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+        }
+        try {
+            Context context = preferredContext != null ? preferredContext : resolveAnyContext();
+            if (context == null) {
+                return new HashMap<>();
+            }
+            Bundle bundle = context.getContentResolver().call(
+                ConfigProvider.CONFIG_URI,
+                ConfigProvider.METHOD_GET_CONFIG,
+                null,
+                null
+            );
+            if (bundle != null) {
+                String content = bundle.getString(ConfigProvider.COLUMN_CONTENT);
+                if (content != null) {
+                    InputStream stream = new java.io.ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+                    return parseConfigStream(stream);
+                }
+            }
+        } catch (Exception exception) {
+        }
+        try {
+            Context context = preferredContext != null ? preferredContext : resolveAnyContext();
+            if (context == null) {
+                return new HashMap<>();
+            }
+            Uri configUri = ConfigProvider.CONFIG_URI;
+            try (Cursor cursor = context.getContentResolver().query(configUri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int contentColumn = cursor.getColumnIndex(ConfigProvider.COLUMN_CONTENT);
+                    if (contentColumn >= 0) {
+                        String content = cursor.getString(contentColumn);
+                        if (content != null) {
+                            InputStream stream = new java.io.ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+                            return parseConfigStream(stream);
+                        }
+                    }
+                }
+            }
+        } catch (Exception exception) {
+        }
+        try {
+            String shellContent = readProviderThroughShell();
+            if (shellContent != null) {
+                InputStream stream = new java.io.ByteArrayInputStream(shellContent.getBytes(StandardCharsets.UTF_8));
+                return parseConfigStream(stream);
+            }
+        } catch (Exception exception) {
         }
         return new HashMap<>();
+    }
+
+    private static Map<String, String> readFromBridgeReceiver(Context preferredContext) {
+        Context context = preferredContext != null ? preferredContext : resolveAnyContext();
+        if (context == null) {
+            return new HashMap<>();
+        }
+        HandlerThread handlerThread = new HandlerThread("spoofmydevice-config-bridge");
+        try {
+            handlerThread.start();
+            Handler handler = new Handler(handlerThread.getLooper());
+            CountDownLatch latch = new CountDownLatch(1);
+            final String[] contentHolder = new String[1];
+
+            BroadcastReceiver resultReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context receiverContext, Intent intent) {
+                    Bundle resultExtras = getResultExtras(false);
+                    if (resultExtras != null) {
+                        contentHolder[0] = resultExtras.getString(ConfigBridgeReceiver.EXTRA_CONTENT);
+                    }
+                    latch.countDown();
+                }
+            };
+
+            Intent intent = new Intent(ConfigBridgeReceiver.ACTION_GET_CONFIG);
+            intent.setClassName("com.spoofmydevice", "com.devicespooflab.hooks.ConfigBridgeReceiver");
+            context.sendOrderedBroadcast(
+                intent,
+                null,
+                resultReceiver,
+                handler,
+                0,
+                null,
+                null
+            );
+
+            if (!latch.await(250, TimeUnit.MILLISECONDS)) {
+                return new HashMap<>();
+            }
+
+            String content = contentHolder[0];
+            if (content == null || content.trim().isEmpty()) {
+                return new HashMap<>();
+            }
+            InputStream stream = new java.io.ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+            return parseConfigStream(stream);
+        } catch (Throwable exception) {
+            return new HashMap<>();
+        } finally {
+            try {
+                handlerThread.quitSafely();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static Map<String, String> readFromRootMirrorFile(Context preferredContext) {
+        File mirrorFile = new File("/data/local/tmp/spoofmydevice_device_profile.conf");
+        try {
+            if (!mirrorFile.exists() || !mirrorFile.canRead()) {
+                debugLog(preferredContext, "root mirror unavailable exists=" + mirrorFile.exists() + " canRead=" + mirrorFile.canRead());
+                return new HashMap<>();
+            }
+            try (InputStream inputStream = new FileInputStream(mirrorFile)) {
+                return parseConfigStream(inputStream);
+            }
+        } catch (Exception exception) {
+            return new HashMap<>();
+        }
+    }
+
+    private static Map<String, String> readFromReadableMirrorFile(Context preferredContext) {
+        File mirrorFile = new File("/data/user/0/com.spoofmydevice/shared_prefs/" + ConfigFileManager.MIRROR_PREFS_NAME + ".xml");
+        try {
+            if (!mirrorFile.exists() || !mirrorFile.canRead()) {
+                debugLog(preferredContext, "readable mirror unavailable exists=" + mirrorFile.exists() + " canRead=" + mirrorFile.canRead());
+                return new HashMap<>();
+            }
+            String xml;
+            try (InputStream inputStream = new FileInputStream(mirrorFile)) {
+                xml = readProcessOutput(inputStream);
+            }
+            if (xml == null || xml.isEmpty()) {
+                return new HashMap<>();
+            }
+            String openTag = "<string name=\"" + ConfigFileManager.MIRROR_PREFS_KEY_CONTENT + "\">";
+            int start = xml.indexOf(openTag);
+            int end = xml.indexOf("</string>");
+            if (start < 0 || end < 0 || end <= start) {
+                return new HashMap<>();
+            }
+            String content = xml.substring(start + openTag.length(), end)
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'")
+                .replace("&amp;", "&");
+            InputStream stream = new java.io.ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+            return parseConfigStream(stream);
+        } catch (Exception exception) {
+            return new HashMap<>();
+        }
+    }
+
+    private static Map<String, String> readFromXSharedPreferences(Context preferredContext) {
+        try {
+            XSharedPreferences preferences = new XSharedPreferences(
+                new File("/data/user/0/com.spoofmydevice/shared_prefs/" + ConfigFileManager.MIRROR_PREFS_NAME + ".xml")
+            );
+            preferences.reload();
+            String content = preferences.getString(ConfigFileManager.MIRROR_PREFS_KEY_CONTENT, null);
+            if (content != null && !content.trim().isEmpty()) {
+                InputStream stream = new java.io.ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+                return parseConfigStream(stream);
+            }
+        } catch (Throwable exception) {
+        }
+        return new HashMap<>();
+    }
+
+    private static void debugLog(Context context, String message) {
+    }
+
+    private static String readProviderThroughShell() {
+        String[] command = new String[] {
+            "/system/bin/sh",
+            "-c",
+            "/system/bin/content call --uri content://com.spoofmydevice.configprovider/device_profile.conf --method get_config"
+        };
+        try {
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            String output = readProcessOutput(process.getInputStream());
+            int exitCode = process.waitFor();
+            if (output == null || output.trim().isEmpty()) {
+                return null;
+            }
+            int start = output.indexOf("content=");
+            if (start < 0) {
+                return null;
+            }
+            return output.substring(start + "content=".length()).trim();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String readProcessOutput(InputStream inputStream) throws Exception {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            StringBuilder builder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (builder.length() > 0) {
+                    builder.append('\n');
+                }
+                builder.append(line);
+            }
+            return builder.toString();
+        }
     }
 
     private static Map<String, String> readFromFile(String path) {
@@ -170,7 +413,7 @@ public class ConfigManager {
             try (InputStream inputStream = new FileInputStream(configFile)) {
                 return parseConfigStream(inputStream);
             }
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
         }
         return new HashMap<>();
     }
@@ -383,12 +626,61 @@ public class ConfigManager {
     }
 
     public static String getSystemProperty(String key, String defaultValue) {
+        ensureFreshConfig();
+        if (usingEmbeddedDefaults) {
+            return defaultValue;
+        }
         String fieldId = getToggleFieldForSystemProperty(key);
         if (fieldId != null && !isSpoofEnabled(fieldId)) {
             return defaultValue;
         }
         String value = getConfigValue(key);
         return (value != null) ? value : defaultValue;
+    }
+
+    public static Map<String, String> getEffectiveSystemProperties() {
+        ensureFreshConfig();
+        Map<String, String> result = new LinkedHashMap<>();
+        if (usingEmbeddedDefaults || allProperties == null || allProperties.isEmpty()) {
+            return result;
+        }
+        for (Map.Entry<String, String> entry : allProperties.entrySet()) {
+            String key = entry.getKey();
+            if (!isShellVisibleSystemProperty(key)) {
+                continue;
+            }
+            String toggleField = getToggleFieldForSystemProperty(key);
+            if (toggleField != null && !isSpoofEnabled(toggleField)) {
+                continue;
+            }
+            result.put(key, entry.getValue() == null ? "" : entry.getValue());
+        }
+        return result;
+    }
+
+    private static boolean isShellVisibleSystemProperty(String key) {
+        if (key == null || key.trim().isEmpty()) {
+            return false;
+        }
+        if (key.startsWith("device.")) {
+            return false;
+        }
+        if (key.equals(KEY_APPLY_SCREEN_METRICS)
+            || key.equals(KEY_SPOOF_IMEI)
+            || key.equals(KEY_SPOOF_MEID)
+            || key.equals(KEY_SPOOF_IMSI)
+            || key.equals(KEY_SPOOF_ICCID)
+            || key.equals(KEY_SPOOF_PHONE_NUMBER)
+            || key.equals(KEY_SPOOF_GAID)
+            || key.equals(KEY_SPOOF_GSF_ID)
+            || key.equals(KEY_SPOOF_MEDIA_DRM_ID)
+            || key.equals(KEY_SPOOF_APP_SET_ID)
+            || key.equals(KEY_SAFE_MODE_PACKAGES)
+            || key.startsWith(KEY_SPOOF_TOGGLE_PREFIX)
+            || key.equals("ANDROID_ID")) {
+            return false;
+        }
+        return true;
     }
 
     public static boolean isTabletProfile() {
@@ -411,6 +703,21 @@ public class ConfigManager {
             return explicit.equals("1") || explicit.equalsIgnoreCase("true");
         }
         return !isTabletProfile();
+    }
+
+    public static boolean shouldExposeTelephony() {
+        return hasTelephonySupport() || shouldReportSimPresent();
+    }
+
+    public static boolean shouldReportSimPresent() {
+        return getICCID() != null
+            || getIMSI() != null
+            || getPhoneNumber() != null
+            || getSystemProperty("gsm.sim.operator.alpha", null) != null
+            || getSystemProperty("gsm.sim.operator.numeric", null) != null
+            || getSystemProperty("gsm.sim.operator.iso-country", null) != null
+            || getSystemProperty("gsm.operator.alpha", null) != null
+            || getSystemProperty("gsm.operator.numeric", null) != null;
     }
 
     public static int getScreenWidth() {
@@ -800,3 +1107,4 @@ public class ConfigManager {
         }
     }
 }
+

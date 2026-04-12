@@ -7,12 +7,15 @@ import com.devicespooflab.hooks.hooks.AppSetIdHooks;
 import com.devicespooflab.hooks.hooks.BuildHooks;
 import com.devicespooflab.hooks.hooks.DisplayHooks;
 import com.devicespooflab.hooks.hooks.EmulatorDetectionHooks;
+import com.devicespooflab.hooks.hooks.GetPropHooks;
 import com.devicespooflab.hooks.hooks.HardwareHooks;
+import com.devicespooflab.hooks.hooks.JavaSystemPropertyHooks;
 import com.devicespooflab.hooks.hooks.MediaDrmHooks;
 import com.devicespooflab.hooks.hooks.PackageManagerHooks;
 import com.devicespooflab.hooks.hooks.SettingsHooks;
 import com.devicespooflab.hooks.hooks.SystemPropertiesHooks;
 import com.devicespooflab.hooks.hooks.TelephonyHooks;
+import com.devicespooflab.hooks.hooks.VendorSystemPropertiesHooks;
 import com.devicespooflab.hooks.hooks.WebViewHooks;
 import com.devicespooflab.hooks.utils.ConfigManager;
 
@@ -61,6 +64,27 @@ public class MainHook implements IXposedHookLoadPackage {
         }
 
         try {
+            VendorSystemPropertiesHooks.hook(lpparam);
+            XposedBridge.log(TAG + ": VendorSystemPropertiesHooks loaded");
+        } catch (Exception exception) {
+            XposedBridge.log(TAG + ": VendorSystemPropertiesHooks failed: " + exception.getMessage());
+        }
+
+        try {
+            JavaSystemPropertyHooks.hook(lpparam);
+            XposedBridge.log(TAG + ": JavaSystemPropertyHooks loaded");
+        } catch (Exception exception) {
+            XposedBridge.log(TAG + ": JavaSystemPropertyHooks failed: " + exception.getMessage());
+        }
+
+        try {
+            GetPropHooks.hook(lpparam);
+            XposedBridge.log(TAG + ": GetPropHooks loaded");
+        } catch (Exception exception) {
+            XposedBridge.log(TAG + ": GetPropHooks failed: " + exception.getMessage());
+        }
+
+        try {
             BuildHooks.hook(lpparam);
             XposedBridge.log(TAG + ": BuildHooks loaded");
         } catch (Exception exception) {
@@ -68,6 +92,7 @@ public class MainHook implements IXposedHookLoadPackage {
         }
 
         hookApplicationAttachForReload(lpparam);
+        hookActivityLifecycleForReapply(lpparam);
 
         try {
             HardwareHooks.hook(lpparam);
@@ -167,6 +192,32 @@ public class MainHook implements IXposedHookLoadPackage {
             );
         } catch (Throwable throwable) {
             XposedBridge.log(TAG + ": Failed to hook Application.attach reload path: " + throwable.getMessage());
+        }
+    }
+
+    private void hookActivityLifecycleForReapply(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            XposedHelpers.findAndHookMethod(
+                "android.app.Activity",
+                null,
+                "onCreate",
+                android.os.Bundle.class,
+                new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        try {
+                            if (!ConfigManager.isUsingEmbeddedDefaults()) {
+                                return;
+                            }
+                            android.app.Activity activity = (android.app.Activity) param.thisObject;
+                            ConfigManager.forceReload(activity);
+                            BuildHooks.reapply(activity.getClassLoader(), lpparam.packageName);
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            );
+        } catch (Throwable ignored) {
         }
     }
 

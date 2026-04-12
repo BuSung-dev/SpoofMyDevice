@@ -3,6 +3,8 @@ package com.devicespooflab.hooks.hooks;
 import com.devicespooflab.hooks.utils.ConfigManager;
 
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -18,6 +20,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public class BuildHooks {
 
     private static final String TAG = "DeviceSpoofLab-Build";
+    private static final Map<String, Object> ORIGINAL_BUILD_FIELDS = new HashMap<>();
+    private static final Map<String, Object> ORIGINAL_VERSION_FIELDS = new HashMap<>();
 
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
         reapply(lpparam.classLoader, lpparam.packageName);
@@ -37,9 +41,25 @@ public class BuildHooks {
                 return;
             }
 
-            applyBuildFields(buildClass);
-            if (versionClass != null && !ConfigManager.shouldBypassVersionSpoof(packageName)) {
-                applyVersionFields(versionClass);
+            captureOriginalBuildFields(buildClass);
+            if (versionClass != null) {
+                captureOriginalVersionFields(versionClass);
+            }
+
+            if (ConfigManager.isUsingEmbeddedDefaults()) {
+                restoreBuildFields(buildClass);
+                if (versionClass != null) {
+                    restoreVersionFields(versionClass);
+                }
+            } else {
+                applyBuildFields(buildClass);
+                if (versionClass != null) {
+                    if (ConfigManager.shouldBypassVersionSpoof(packageName)) {
+                        restoreVersionFields(versionClass);
+                    } else {
+                        applyVersionFields(versionClass);
+                    }
+                }
             }
             hookGetSerial(buildClass);
 
@@ -62,34 +82,16 @@ public class BuildHooks {
     }
 
     private static void applyBuildFields(Class<?> buildClass) {
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BRAND)) {
-            setStaticString(buildClass, "BRAND", ConfigManager.getBuildBrand());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_MANUFACTURER)) {
-            setStaticString(buildClass, "MANUFACTURER", ConfigManager.getBuildManufacturer());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_MODEL)) {
-            setStaticString(buildClass, "MODEL", ConfigManager.getBuildModel());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_DEVICE)) {
-            setStaticString(buildClass, "DEVICE", ConfigManager.getBuildDevice());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_PRODUCT)) {
-            setStaticString(buildClass, "PRODUCT", ConfigManager.getBuildProduct());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BOARD)) {
-            setStaticString(buildClass, "BOARD", ConfigManager.getBuildBoard());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_HARDWARE)) {
-            setStaticString(buildClass, "HARDWARE", ConfigManager.getBuildHardware());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_FINGERPRINT)) {
-            setStaticString(buildClass, "FINGERPRINT", ConfigManager.getBuildFingerprint());
-        }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BUILD_ID)) {
-            setStaticString(buildClass, "ID", ConfigManager.getBuildId());
-            setStaticString(buildClass, "DISPLAY", ConfigManager.getBuildDisplay());
-        }
+        applyOrRestoreString(buildClass, "BRAND", ConfigManager.FIELD_BRAND, ConfigManager.getBuildBrand());
+        applyOrRestoreString(buildClass, "MANUFACTURER", ConfigManager.FIELD_MANUFACTURER, ConfigManager.getBuildManufacturer());
+        applyOrRestoreString(buildClass, "MODEL", ConfigManager.FIELD_MODEL, ConfigManager.getBuildModel());
+        applyOrRestoreString(buildClass, "DEVICE", ConfigManager.FIELD_DEVICE, ConfigManager.getBuildDevice());
+        applyOrRestoreString(buildClass, "PRODUCT", ConfigManager.FIELD_PRODUCT, ConfigManager.getBuildProduct());
+        applyOrRestoreString(buildClass, "BOARD", ConfigManager.FIELD_BOARD, ConfigManager.getBuildBoard());
+        applyOrRestoreString(buildClass, "HARDWARE", ConfigManager.FIELD_HARDWARE, ConfigManager.getBuildHardware());
+        applyOrRestoreString(buildClass, "FINGERPRINT", ConfigManager.FIELD_FINGERPRINT, ConfigManager.getBuildFingerprint());
+        applyOrRestoreString(buildClass, "ID", ConfigManager.FIELD_BUILD_ID, ConfigManager.getBuildId());
+        applyOrRestoreString(buildClass, "DISPLAY", ConfigManager.FIELD_BUILD_ID, ConfigManager.getBuildDisplay());
         setStaticString(buildClass, "TAGS", ConfigManager.getBuildTags());
         setStaticString(buildClass, "TYPE", ConfigManager.getBuildType());
         setStaticString(buildClass, "BOOTLOADER", ConfigManager.getBuildBootloader());
@@ -106,20 +108,133 @@ public class BuildHooks {
     }
 
     private static void applyVersionFields(Class<?> versionClass) {
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_ANDROID_RELEASE)) {
-            setStaticString(versionClass, "RELEASE", ConfigManager.getBuildVersionRelease());
-            setStaticString(versionClass, "RELEASE_OR_CODENAME", ConfigManager.getBuildVersionRelease());
-            setStaticString(versionClass, "CODENAME", ConfigManager.getBuildVersionCodename());
+        applyOrRestoreVersionString(versionClass, "RELEASE", ConfigManager.FIELD_ANDROID_RELEASE, ConfigManager.getBuildVersionRelease());
+        applyOrRestoreVersionString(versionClass, "RELEASE_OR_CODENAME", ConfigManager.FIELD_ANDROID_RELEASE, ConfigManager.getBuildVersionRelease());
+        applyOrRestoreVersionString(versionClass, "CODENAME", ConfigManager.FIELD_ANDROID_RELEASE, ConfigManager.getBuildVersionCodename());
+        applyOrRestoreVersionString(versionClass, "INCREMENTAL", ConfigManager.FIELD_BUILD_INCREMENTAL, ConfigManager.getBuildVersionIncremental());
+        applyOrRestoreVersionString(versionClass, "SECURITY_PATCH", ConfigManager.FIELD_SECURITY_PATCH, ConfigManager.getBuildVersionSecurityPatch());
+        applyOrRestoreVersionInt(versionClass, "SDK_INT", ConfigManager.FIELD_SDK, ConfigManager.getBuildVersionSdk());
+        applyOrRestoreVersionInt(versionClass, "DEVICE_INITIAL_SDK_INT", ConfigManager.FIELD_SDK, ConfigManager.getBuildVersionSdk());
+    }
+
+    private static void captureOriginalBuildFields(Class<?> buildClass) {
+        captureField(buildClass, "BRAND", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "MANUFACTURER", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "MODEL", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "DEVICE", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "PRODUCT", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "BOARD", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "HARDWARE", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "FINGERPRINT", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "ID", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "DISPLAY", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "TAGS", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "TYPE", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "BOOTLOADER", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "SERIAL", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "SUPPORTED_ABIS", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "SUPPORTED_64_BIT_ABIS", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "SUPPORTED_32_BIT_ABIS", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "CPU_ABI", ORIGINAL_BUILD_FIELDS);
+        captureField(buildClass, "CPU_ABI2", ORIGINAL_BUILD_FIELDS);
+    }
+
+    private static void captureOriginalVersionFields(Class<?> versionClass) {
+        captureField(versionClass, "RELEASE", ORIGINAL_VERSION_FIELDS);
+        captureField(versionClass, "RELEASE_OR_CODENAME", ORIGINAL_VERSION_FIELDS);
+        captureField(versionClass, "CODENAME", ORIGINAL_VERSION_FIELDS);
+        captureField(versionClass, "INCREMENTAL", ORIGINAL_VERSION_FIELDS);
+        captureField(versionClass, "SECURITY_PATCH", ORIGINAL_VERSION_FIELDS);
+        captureField(versionClass, "SDK_INT", ORIGINAL_VERSION_FIELDS);
+        captureField(versionClass, "DEVICE_INITIAL_SDK_INT", ORIGINAL_VERSION_FIELDS);
+    }
+
+    private static void restoreBuildFields(Class<?> buildClass) {
+        restoreField(buildClass, "BRAND", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "MANUFACTURER", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "MODEL", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "DEVICE", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "PRODUCT", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "BOARD", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "HARDWARE", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "FINGERPRINT", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "ID", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "DISPLAY", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "TAGS", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "TYPE", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "BOOTLOADER", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "SERIAL", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "SUPPORTED_ABIS", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "SUPPORTED_64_BIT_ABIS", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "SUPPORTED_32_BIT_ABIS", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "CPU_ABI", ORIGINAL_BUILD_FIELDS);
+        restoreField(buildClass, "CPU_ABI2", ORIGINAL_BUILD_FIELDS);
+    }
+
+    private static void restoreVersionFields(Class<?> versionClass) {
+        restoreField(versionClass, "RELEASE", ORIGINAL_VERSION_FIELDS);
+        restoreField(versionClass, "RELEASE_OR_CODENAME", ORIGINAL_VERSION_FIELDS);
+        restoreField(versionClass, "CODENAME", ORIGINAL_VERSION_FIELDS);
+        restoreField(versionClass, "INCREMENTAL", ORIGINAL_VERSION_FIELDS);
+        restoreField(versionClass, "SECURITY_PATCH", ORIGINAL_VERSION_FIELDS);
+        restoreField(versionClass, "SDK_INT", ORIGINAL_VERSION_FIELDS);
+        restoreField(versionClass, "DEVICE_INITIAL_SDK_INT", ORIGINAL_VERSION_FIELDS);
+    }
+
+    private static void applyOrRestoreString(Class<?> targetClass, String fieldName, String toggleFieldId, String value) {
+        if (ConfigManager.isSpoofEnabled(toggleFieldId)) {
+            setStaticString(targetClass, fieldName, value);
+        } else {
+            restoreField(targetClass, fieldName, ORIGINAL_BUILD_FIELDS);
         }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_BUILD_INCREMENTAL)) {
-            setStaticString(versionClass, "INCREMENTAL", ConfigManager.getBuildVersionIncremental());
+    }
+
+    private static void applyOrRestoreVersionString(Class<?> targetClass, String fieldName, String toggleFieldId, String value) {
+        if (ConfigManager.isSpoofEnabled(toggleFieldId)) {
+            setStaticString(targetClass, fieldName, value);
+        } else {
+            restoreField(targetClass, fieldName, ORIGINAL_VERSION_FIELDS);
         }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_SECURITY_PATCH)) {
-            setStaticString(versionClass, "SECURITY_PATCH", ConfigManager.getBuildVersionSecurityPatch());
+    }
+
+    private static void applyOrRestoreVersionInt(Class<?> targetClass, String fieldName, String toggleFieldId, int value) {
+        if (ConfigManager.isSpoofEnabled(toggleFieldId)) {
+            setStaticInt(targetClass, fieldName, value);
+        } else {
+            restoreField(targetClass, fieldName, ORIGINAL_VERSION_FIELDS);
         }
-        if (ConfigManager.isSpoofEnabled(ConfigManager.FIELD_SDK)) {
-            setStaticInt(versionClass, "SDK_INT", ConfigManager.getBuildVersionSdk());
-            setStaticInt(versionClass, "DEVICE_INITIAL_SDK_INT", ConfigManager.getBuildVersionSdk());
+    }
+
+    private static void captureField(Class<?> targetClass, String fieldName, Map<String, Object> bucket) {
+        if (bucket.containsKey(fieldName)) {
+            return;
+        }
+        Field field = XposedHelpers.findFieldIfExists(targetClass, fieldName);
+        if (field == null) {
+            return;
+        }
+        try {
+            if (field.getType() == Integer.TYPE) {
+                bucket.put(fieldName, XposedHelpers.getStaticIntField(targetClass, fieldName));
+            } else {
+                bucket.put(fieldName, XposedHelpers.getStaticObjectField(targetClass, fieldName));
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void restoreField(Class<?> targetClass, String fieldName, Map<String, Object> bucket) {
+        Field field = XposedHelpers.findFieldIfExists(targetClass, fieldName);
+        if (field == null || !bucket.containsKey(fieldName)) {
+            return;
+        }
+        try {
+            if (field.getType() == Integer.TYPE && bucket.get(fieldName) instanceof Integer) {
+                XposedHelpers.setStaticIntField(targetClass, fieldName, (Integer) bucket.get(fieldName));
+            } else {
+                XposedHelpers.setStaticObjectField(targetClass, fieldName, bucket.get(fieldName));
+            }
+        } catch (Throwable ignored) {
         }
     }
 

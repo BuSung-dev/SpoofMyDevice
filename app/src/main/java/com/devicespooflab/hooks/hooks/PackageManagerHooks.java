@@ -148,7 +148,7 @@ public class PackageManagerHooks {
         }
 
         if (TELEPHONY_FEATURES.contains(featureName)) {
-            return ConfigManager.hasTelephonySupport();
+            return ConfigManager.shouldExposeTelephony();
         }
 
         if (ConfigManager.isTabletProfile() && "android.hardware.type.pc".equals(featureName)) {

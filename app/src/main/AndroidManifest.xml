@@ -39,7 +39,15 @@
             android:name=".ConfigProvider"
             android:authorities="com.spoofmydevice.configprovider"
             android:exported="true"
-            android:grantUriPermissions="false" />
+            android:grantUriPermissions="true" />
+
+        <receiver
+            android:name=".ConfigBridgeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.spoofmydevice.action.GET_CONFIG" />
+            </intent-filter>
+        </receiver>
 
         <!-- Xposed Module metadata -->
         <meta-data
