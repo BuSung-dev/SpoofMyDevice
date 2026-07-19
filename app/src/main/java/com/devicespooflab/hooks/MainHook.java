@@ -48,6 +48,7 @@ public class MainHook implements IXposedHookLoadPackage {
     private static final String TAG = "SpoofMyDevice";
     private static final String MODULE_PACKAGE = "com.spoofmydevice";
     private static final int REAL_SDK_INT = Build.VERSION.SDK_INT;
+    private static final Set<String> INITIALIZED_HOOK_PROCESSES = ConcurrentHashMap.newKeySet();
     private static final Set<String> CONFIG_RECEIVER_PROCESSES = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -64,16 +65,27 @@ public class MainHook implements IXposedHookLoadPackage {
             return;
         }
 
+        hookApplicationAttachForInitialization(lpparam);
+
         try {
             ConfigManager.init(lpparam.packageName);
             if (!ConfigManager.hasAssignedProfile()) {
-                XposedBridge.log(TAG + ": No profile assigned for " + lpparam.packageName);
+                XposedBridge.log(TAG + ": Profile unavailable before Application.attach; deferring hooks for " + lpparam.packageName);
                 return;
             }
             XposedBridge.log(TAG + ": Config initialized successfully");
         } catch (Exception exception) {
             XposedBridge.log(TAG + ": Failed to init config: " + exception.getMessage());
             exception.printStackTrace();
+            return;
+        }
+
+        initializeHooks(lpparam);
+    }
+
+    private void initializeHooks(XC_LoadPackage.LoadPackageParam lpparam) {
+        String processName = lpparam.processName == null ? lpparam.packageName : lpparam.processName;
+        if (!INITIALIZED_HOOK_PROCESSES.add(processName)) {
             return;
         }
 
@@ -112,8 +124,14 @@ public class MainHook implements IXposedHookLoadPackage {
             XposedBridge.log(TAG + ": BuildHooks failed: " + exception.getMessage());
         }
 
-        hookApplicationAttachForReload(lpparam);
         hookActivityLifecycleForReapply(lpparam);
+
+        try {
+            LocaleHooks.hook(lpparam);
+            XposedBridge.log(TAG + ": LocaleHooks loaded");
+        } catch (Exception exception) {
+            XposedBridge.log(TAG + ": LocaleHooks failed: " + exception.getMessage());
+        }
 
         try {
             HardwareHooks.hook(lpparam);
@@ -190,7 +208,7 @@ public class MainHook implements IXposedHookLoadPackage {
         XposedBridge.log(TAG + ": All hooks initialized for " + lpparam.packageName);
     }
 
-    private void hookApplicationAttachForReload(XC_LoadPackage.LoadPackageParam lpparam) {
+    private void hookApplicationAttachForInitialization(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
             XposedHelpers.findAndHookMethod(
                 "android.app.Application",
@@ -203,24 +221,22 @@ public class MainHook implements IXposedHookLoadPackage {
                         try {
                             Context context = (Context) param.args[0];
                             ConfigManager.forceReload(context);
-                            BuildHooks.reapply(context.getClassLoader(), lpparam.packageName);
                             registerConfigChangeReceiver(context, lpparam);
-                            XposedBridge.log(TAG + ": Config reloaded after Application.attach for " + lpparam.packageName);
+                            if (!ConfigManager.hasAssignedProfile()) {
+                                XposedBridge.log(TAG + ": No profile assigned after Application.attach for " + lpparam.packageName);
+                                return;
+                            }
+                            initializeHooks(lpparam);
+                            BuildHooks.reapply(context.getClassLoader(), lpparam.packageName);
+                            XposedBridge.log(TAG + ": Profile loaded after Application.attach for " + lpparam.packageName);
                         } catch (Throwable throwable) {
-                            XposedBridge.log(TAG + ": Failed to reload config after attach for " + lpparam.packageName + ": " + throwable.getMessage());
+                            XposedBridge.log(TAG + ": Failed to initialize hooks after attach for " + lpparam.packageName + ": " + throwable.getMessage());
                         }
                     }
                 }
             );
         } catch (Throwable throwable) {
-            XposedBridge.log(TAG + ": Failed to hook Application.attach reload path: " + throwable.getMessage());
-        }
-
-        try {
-            LocaleHooks.hook(lpparam);
-            XposedBridge.log(TAG + ": LocaleHooks loaded");
-        } catch (Exception exception) {
-            XposedBridge.log(TAG + ": LocaleHooks failed: " + exception.getMessage());
+            XposedBridge.log(TAG + ": Failed to hook Application.attach initialization path: " + throwable.getMessage());
         }
     }
 
@@ -238,6 +254,10 @@ public class MainHook implements IXposedHookLoadPackage {
                     return;
                 }
                 ConfigManager.forceReload(receiverContext);
+                if (!ConfigManager.hasAssignedProfile()) {
+                    return;
+                }
+                initializeHooks(lpparam);
                 BuildHooks.reapply(receiverContext.getClassLoader(), lpparam.packageName);
             }
         };

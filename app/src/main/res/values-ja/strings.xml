@@ -8,6 +8,8 @@
     <string name="tab_app_profiles">アプリ別設定</string>
     <string name="tab_profile_management">プロファイル管理</string>
     <string name="back">戻る</string>
+    <string name="navigation_expand">ナビゲーションを展開</string>
+    <string name="navigation_collapse">ナビゲーションを折りたたむ</string>
     <string name="app_profile_search">アプリを検索</string>
     <string name="app_profile_loading_apps">アプリを読み込んでいます…</string>
     <string name="app_profile_loading_profiles">プロファイルを読み込んでいます…</string>
