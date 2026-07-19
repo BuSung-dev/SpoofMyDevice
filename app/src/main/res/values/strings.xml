@@ -9,6 +9,8 @@
     <string name="tab_app_profiles">Apps</string>
     <string name="tab_profile_management">Profiles</string>
     <string name="back">Back</string>
+    <string name="navigation_expand">Expand navigation</string>
+    <string name="navigation_collapse">Collapse navigation</string>
     <string name="app_profile_search">Search apps</string>
     <string name="app_profile_loading_apps">Loading apps…</string>
     <string name="app_profile_loading_profiles">Loading profiles…</string>

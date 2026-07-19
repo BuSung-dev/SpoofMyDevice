@@ -8,6 +8,8 @@
     <string name="tab_app_profiles">按应用设置</string>
     <string name="tab_profile_management">配置文件管理</string>
     <string name="back">返回</string>
+    <string name="navigation_expand">展开导航</string>
+    <string name="navigation_collapse">收起导航</string>
     <string name="app_profile_search">搜索应用</string>
     <string name="app_profile_loading_apps">正在加载应用…</string>
     <string name="app_profile_loading_profiles">正在加载配置文件…</string>
