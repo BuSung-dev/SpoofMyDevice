@@ -1,5 +1,10 @@
 package com.devicespooflab.hooks;
 
+import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 
 import com.devicespooflab.hooks.hooks.AdvertisingIdHooks;
@@ -10,6 +15,7 @@ import com.devicespooflab.hooks.hooks.EmulatorDetectionHooks;
 import com.devicespooflab.hooks.hooks.GetPropHooks;
 import com.devicespooflab.hooks.hooks.HardwareHooks;
 import com.devicespooflab.hooks.hooks.JavaSystemPropertyHooks;
+import com.devicespooflab.hooks.hooks.LocaleHooks;
 import com.devicespooflab.hooks.hooks.MediaDrmHooks;
 import com.devicespooflab.hooks.hooks.PackageManagerHooks;
 import com.devicespooflab.hooks.hooks.SettingsHooks;
@@ -18,6 +24,9 @@ import com.devicespooflab.hooks.hooks.TelephonyHooks;
 import com.devicespooflab.hooks.hooks.VendorSystemPropertiesHooks;
 import com.devicespooflab.hooks.hooks.WebViewHooks;
 import com.devicespooflab.hooks.utils.ConfigManager;
+
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -38,17 +47,29 @@ public class MainHook implements IXposedHookLoadPackage {
 
     private static final String TAG = "SpoofMyDevice";
     private static final String MODULE_PACKAGE = "com.spoofmydevice";
+    private static final int REAL_SDK_INT = Build.VERSION.SDK_INT;
+    private static final Set<String> CONFIG_RECEIVER_PROCESSES = ConcurrentHashMap.newKeySet();
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
         XposedBridge.log(TAG + ": Loading hooks for " + lpparam.packageName);
 
+        if ("android".equals(lpparam.packageName)) {
+            XposedBridge.log(TAG + ": Skipping Android system framework");
+            return;
+        }
+
         if (MODULE_PACKAGE.equals(lpparam.packageName)) {
             hookActivationCheck(lpparam);
+            return;
         }
 
         try {
-            ConfigManager.init();
+            ConfigManager.init(lpparam.packageName);
+            if (!ConfigManager.hasAssignedProfile()) {
+                XposedBridge.log(TAG + ": No profile assigned for " + lpparam.packageName);
+                return;
+            }
             XposedBridge.log(TAG + ": Config initialized successfully");
         } catch (Exception exception) {
             XposedBridge.log(TAG + ": Failed to init config: " + exception.getMessage());
@@ -136,7 +157,7 @@ public class MainHook implements IXposedHookLoadPackage {
             XposedBridge.log(TAG + ": AdvertisingIdHooks failed: " + exception.getMessage());
         }
 
-        if (Build.VERSION.SDK_INT >= 30) {
+        if (REAL_SDK_INT >= 30) {
             try {
                 AppSetIdHooks.hook(lpparam);
                 XposedBridge.log(TAG + ": AppSetIdHooks loaded");
@@ -178,11 +199,12 @@ public class MainHook implements IXposedHookLoadPackage {
                 android.content.Context.class,
                 new XC_MethodHook() {
                     @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
+                    protected void afterHookedMethod(MethodHookParam param) {
                         try {
-                            android.content.Context context = (android.content.Context) param.args[0];
+                            Context context = (Context) param.args[0];
                             ConfigManager.forceReload(context);
-                            BuildHooks.reapply(((android.content.Context) param.args[0]).getClassLoader(), lpparam.packageName);
+                            BuildHooks.reapply(context.getClassLoader(), lpparam.packageName);
+                            registerConfigChangeReceiver(context, lpparam);
                             XposedBridge.log(TAG + ": Config reloaded after Application.attach for " + lpparam.packageName);
                         } catch (Throwable throwable) {
                             XposedBridge.log(TAG + ": Failed to reload config after attach for " + lpparam.packageName + ": " + throwable.getMessage());
@@ -192,6 +214,39 @@ public class MainHook implements IXposedHookLoadPackage {
             );
         } catch (Throwable throwable) {
             XposedBridge.log(TAG + ": Failed to hook Application.attach reload path: " + throwable.getMessage());
+        }
+
+        try {
+            LocaleHooks.hook(lpparam);
+            XposedBridge.log(TAG + ": LocaleHooks loaded");
+        } catch (Exception exception) {
+            XposedBridge.log(TAG + ": LocaleHooks failed: " + exception.getMessage());
+        }
+    }
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private void registerConfigChangeReceiver(Context context, XC_LoadPackage.LoadPackageParam lpparam) {
+        String processName = lpparam.processName == null ? lpparam.packageName : lpparam.processName;
+        if (!CONFIG_RECEIVER_PROCESSES.add(processName)) {
+            return;
+        }
+
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context receiverContext, Intent intent) {
+                if (intent == null || !ConfigManager.ACTION_CONFIG_CHANGED.equals(intent.getAction())) {
+                    return;
+                }
+                ConfigManager.forceReload(receiverContext);
+                BuildHooks.reapply(receiverContext.getClassLoader(), lpparam.packageName);
+            }
+        };
+
+        IntentFilter filter = new IntentFilter(ConfigManager.ACTION_CONFIG_CHANGED);
+        if (REAL_SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+        } else {
+            context.registerReceiver(receiver, filter);
         }
     }
 

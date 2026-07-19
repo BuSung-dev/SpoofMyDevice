@@ -33,6 +33,7 @@ public class DeviceProfile {
     private String simOperatorNumeric;
     private String simCountryIso;
     private String timezone;
+    private String locale;
     private String userAgent;
     private String serialNumber;
     private String bootloader;
@@ -76,6 +77,7 @@ public class DeviceProfile {
         this.simOperatorNumeric = other.simOperatorNumeric;
         this.simCountryIso = other.simCountryIso;
         this.timezone = other.timezone;
+        this.locale = other.locale;
         this.userAgent = other.userAgent;
         this.serialNumber = other.serialNumber;
         this.bootloader = other.bootloader;
@@ -143,6 +145,7 @@ public class DeviceProfile {
         simOperatorNumeric = firstNonBlank(simOperatorNumeric, operatorNumeric);
         simCountryIso = firstNonBlank(simCountryIso, "us");
         timezone = firstNonBlank(timezone, "America/Los_Angeles");
+        locale = firstNonBlank(locale, "en-US");
         userAgent = firstNonBlank(
             userAgent,
             String.format(
@@ -173,13 +176,40 @@ public class DeviceProfile {
             && Objects.equals(left.model, right.model)
             && Objects.equals(left.productName, right.productName)
             && Objects.equals(left.deviceCode, right.deviceCode)
+            && Objects.equals(left.board, right.board)
+            && Objects.equals(left.hardware, right.hardware)
             && Objects.equals(left.boardPlatform, right.boardPlatform)
             && Objects.equals(left.buildFingerprint, right.buildFingerprint)
+            && Objects.equals(left.buildId, right.buildId)
+            && Objects.equals(left.buildDisplayId, right.buildDisplayId)
+            && Objects.equals(left.buildIncremental, right.buildIncremental)
             && Objects.equals(left.buildRelease, right.buildRelease)
             && left.buildSdk == right.buildSdk
+            && Objects.equals(left.securityPatch, right.securityPatch)
+            && Objects.equals(left.buildDescription, right.buildDescription)
+            && Objects.equals(left.buildFlavor, right.buildFlavor)
+            && Objects.equals(left.buildProduct, right.buildProduct)
+            && Objects.equals(left.buildCharacteristics, right.buildCharacteristics)
             && left.screenWidth == right.screenWidth
             && left.screenHeight == right.screenHeight
-            && left.screenDensity == right.screenDensity;
+            && left.screenDensity == right.screenDensity
+            && Objects.equals(left.operatorAlpha, right.operatorAlpha)
+            && Objects.equals(left.operatorNumeric, right.operatorNumeric)
+            && Objects.equals(left.simOperatorAlpha, right.simOperatorAlpha)
+            && Objects.equals(left.simOperatorNumeric, right.simOperatorNumeric)
+            && Objects.equals(left.simCountryIso, right.simCountryIso)
+            && Objects.equals(left.timezone, right.timezone)
+            && Objects.equals(left.locale, right.locale)
+            && Objects.equals(left.userAgent, right.userAgent)
+            && Objects.equals(left.serialNumber, right.serialNumber)
+            && Objects.equals(left.bootloader, right.bootloader)
+            && Objects.equals(left.androidId, right.androidId)
+            && Objects.equals(left.cpuAbi, right.cpuAbi)
+            && Objects.equals(left.cpuAbiList, right.cpuAbiList)
+            && Objects.equals(left.cpuAbiList64, right.cpuAbiList64)
+            && Objects.equals(left.cpuAbiList32, right.cpuAbiList32)
+            && Objects.equals(left.socModel, right.socModel)
+            && Objects.equals(left.socManufacturer, right.socManufacturer);
     }
 
     public String getDisplayName() {
@@ -264,6 +294,8 @@ public class DeviceProfile {
     public void setSimCountryIso(String simCountryIso) { this.simCountryIso = simCountryIso; }
     public String getTimezone() { return timezone; }
     public void setTimezone(String timezone) { this.timezone = timezone; }
+    public String getLocale() { return locale; }
+    public void setLocale(String locale) { this.locale = locale; }
     public String getUserAgent() { return userAgent; }
     public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
     public String getSerialNumber() { return serialNumber; }

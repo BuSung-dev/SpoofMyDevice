@@ -16,14 +16,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DeviceSpoofLab">
 
-        <activity
-            android:name=".RealInfoActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".SafeModeAppsActivity"
-            android:exported="false" />
-
         <!-- Main Activity - Auto-creates config file on first launch -->
         <activity
             android:name=".MainActivity"
@@ -34,6 +26,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".RealInfoActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".DiagnosticsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".AppProfileAssignmentActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ProfileEditorActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".SafeModeAppsActivity"
+            android:exported="false" />
 
         <provider
             android:name=".ConfigProvider"
@@ -56,7 +70,7 @@
 
         <meta-data
             android:name="xposeddescription"
-            android:value="@string/xposed_description" />
+            android:value="@string/xposed_module_description" />
 
         <meta-data
             android:name="xposedminversion"

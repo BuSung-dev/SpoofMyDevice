@@ -11,18 +11,19 @@ import android.os.ParcelFileDescriptor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+
+import com.devicespooflab.hooks.data.AppProfileStore;
 
 public class ConfigProvider extends ContentProvider {
 
     public static final String AUTHORITY = "com.spoofmydevice.configprovider";
-    public static final String FILE_NAME = "device_profile.conf";
+    public static final String FILE_NAME = "resolved_profile.conf";
     public static final Uri CONFIG_URI = Uri.parse("content://" + AUTHORITY + "/" + FILE_NAME);
     public static final String COLUMN_CONTENT = "content";
     public static final String METHOD_GET_CONFIG = "get_config";
+    public static final String QUERY_PACKAGE = "package";
 
     @Override
     public boolean onCreate() {
@@ -32,16 +33,27 @@ public class ConfigProvider extends ContentProvider {
     @Nullable
     @Override
     public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode) throws FileNotFoundException {
-        if (getContext() == null || !FILE_NAME.equals(uri.getLastPathSegment())) {
+        if (getContext() == null || !FILE_NAME.equals(uri.getLastPathSegment()) || !"r".equals(mode)) {
             throw new FileNotFoundException("Unknown config uri: " + uri);
         }
-
-        File configFile = new File(getContext().getFilesDir(), FILE_NAME);
-        if (!configFile.exists()) {
-            throw new FileNotFoundException("Config file does not exist yet");
+        String content = readConfigContent(resolvePackageName(uri, null));
+        if (content == null) {
+            throw new FileNotFoundException("No profile is assigned to the requested package");
         }
-
-        return ParcelFileDescriptor.open(configFile, ParcelFileDescriptor.MODE_READ_ONLY);
+        try {
+            ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
+            Thread writer = new Thread(() -> {
+                try (ParcelFileDescriptor.AutoCloseOutputStream outputStream =
+                         new ParcelFileDescriptor.AutoCloseOutputStream(pipe[1])) {
+                    outputStream.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                } catch (IOException ignored) {
+                }
+            }, "spoofmydevice-config-provider");
+            writer.start();
+            return pipe[0];
+        } catch (IOException exception) {
+            throw new FileNotFoundException(exception.getMessage());
+        }
     }
 
     @Nullable
@@ -53,7 +65,8 @@ public class ConfigProvider extends ContentProvider {
     @Nullable
     @Override
     public Cursor query(@NonNull Uri uri, @Nullable String[] projection, @Nullable String selection, @Nullable String[] selectionArgs, @Nullable String sortOrder) {
-        String content = readConfigContent();
+        String requestedPackage = selectionArgs != null && selectionArgs.length > 0 ? selectionArgs[0] : null;
+        String content = readConfigContent(resolvePackageName(uri, requestedPackage));
         if (content == null) {
             return null;
         }
@@ -68,7 +81,7 @@ public class ConfigProvider extends ContentProvider {
         if (!METHOD_GET_CONFIG.equals(method)) {
             return super.call(method, arg, extras);
         }
-        String content = readConfigContent();
+        String content = readConfigContent(resolvePackageName(CONFIG_URI, arg));
         if (content == null) {
             return null;
         }
@@ -94,25 +107,18 @@ public class ConfigProvider extends ContentProvider {
     }
 
     @Nullable
-    private String readConfigContent() {
-        if (getContext() == null) {
-            return null;
-        }
+    private String readConfigContent(String packageName) {
+        return AppProfileStore.resolveConfig(getContext(), packageName);
+    }
 
-        File configFile = new File(getContext().getFilesDir(), FILE_NAME);
-        if (!configFile.exists()) {
-            return null;
+    private String resolvePackageName(Uri uri, String requestedPackage) {
+        if (requestedPackage != null && !requestedPackage.trim().isEmpty()) {
+            return requestedPackage.trim();
         }
-
-        try (FileInputStream inputStream = new FileInputStream(configFile)) {
-            byte[] bytes = new byte[(int) configFile.length()];
-            int read = inputStream.read(bytes);
-            if (read < 0) {
-                return "";
-            }
-            return new String(bytes, 0, read, StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            return null;
+        String queryPackage = uri.getQueryParameter(QUERY_PACKAGE);
+        if (queryPackage != null && !queryPackage.trim().isEmpty()) {
+            return queryPackage.trim();
         }
+        return getCallingPackage();
     }
 }

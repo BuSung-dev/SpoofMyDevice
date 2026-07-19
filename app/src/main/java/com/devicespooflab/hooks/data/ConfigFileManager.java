@@ -1,18 +1,10 @@
 package com.devicespooflab.hooks.data;
 
-import android.content.Intent;
 import android.content.Context;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.os.Environment;
-
-import com.devicespooflab.hooks.ConfigProvider;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.nio.charset.StandardCharsets;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -25,10 +17,6 @@ import java.util.Set;
 public class ConfigFileManager {
 
     private static final String CONFIG_NAME = "device_profile.conf";
-    private static final String ROOT_MIRROR_PATH = "/data/local/tmp/spoofmydevice_device_profile.conf";
-    private static final String PUBLIC_DIR_NAME = "SpoofMyDevice";
-    public static final String MIRROR_PREFS_NAME = "module_config_mirror";
-    public static final String MIRROR_PREFS_KEY_CONTENT = "content";
     private static final String META_PREFIX = "# meta.";
     private static final List<String> PARTITIONS = Arrays.asList(
         "product",
@@ -42,31 +30,16 @@ public class ConfigFileManager {
     );
     private static final Set<String> MANAGED_KEYS = buildManagedKeys();
 
-    public LoadedConfig ensureLoaded(Context context, List<DevicePreset> presets) throws Exception {
-        File configFile = getConfigFile(context);
-        if (!configFile.exists()) {
-            if (presets.isEmpty()) {
-                throw new IllegalStateException("No remote presets available yet.");
-            }
-            DevicePreset defaultPreset = presets.get(0);
-            return save(context, defaultPreset.getProfile(), new LinkedHashMap<String, String>(), defaultPreset.getId(), false);
-        }
-        return load(context, presets);
-    }
-
-    public LoadedConfig load(Context context, List<DevicePreset> presets) throws Exception {
-        File configFile = getConfigFile(context);
-        if (!configFile.exists()) {
-            return ensureLoaded(context, presets);
-        }
-
+    public LoadedConfig loadContent(
+        File sourceFile,
+        String content,
+        List<DevicePreset> presets
+    ) throws Exception {
         Map<String, String> metadata = new LinkedHashMap<>();
         Map<String, String> properties = new LinkedHashMap<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
+        try (BufferedReader reader = new BufferedReader(new StringReader(content))) {
             String line;
-            StringBuilder rawContent = new StringBuilder();
             while ((line = reader.readLine()) != null) {
-                rawContent.append(line).append('\n');
                 String trimmed = line.trim();
                 if (trimmed.startsWith(META_PREFIX)) {
                     int index = trimmed.indexOf('=');
@@ -89,12 +62,16 @@ public class ConfigFileManager {
                     );
                 }
             }
-            makeConfigReadable(context, configFile);
-            writeRootMirror(configFile);
-            mirrorForXposed(context, rawContent.toString());
-            grantConfigUriReadAccess(context);
         }
+        return createLoadedConfig(sourceFile, presets, metadata, properties);
+    }
 
+    private LoadedConfig createLoadedConfig(
+        File configFile,
+        List<DevicePreset> presets,
+        Map<String, String> metadata,
+        Map<String, String> properties
+    ) {
         String selectedPresetId = metadata.get("preset_id");
         DeviceProfile baseProfile = findPresetProfile(presets, selectedPresetId);
         if (baseProfile == null) {
@@ -126,14 +103,26 @@ public class ConfigFileManager {
         return new LoadedConfig(configFile, profile, extraProperties, selectedPresetId, customMode);
     }
 
-    public LoadedConfig save(
-        Context context,
+    public String render(
         DeviceProfile draftProfile,
         Map<String, String> extraProperties,
         String selectedPresetId,
         boolean customMode
-    ) throws Exception {
-        File configFile = getConfigFile(context);
+    ) {
+        return buildConfig(
+            draftProfile,
+            extraProperties,
+            selectedPresetId,
+            customMode
+        );
+    }
+
+    private String buildConfig(
+        DeviceProfile draftProfile,
+        Map<String, String> extraProperties,
+        String selectedPresetId,
+        boolean customMode
+    ) {
         DeviceProfile profile = draftProfile.copy();
         profile.applyFallbacks();
 
@@ -263,6 +252,10 @@ public class ConfigFileManager {
         append(builder, "gsm.sim.operator.numeric", profile.getSimOperatorNumeric());
         append(builder, "gsm.sim.operator.iso-country", profile.getSimCountryIso());
         append(builder, "persist.sys.timezone", profile.getTimezone());
+        append(builder, "persist.sys.locale", profile.getLocale());
+        append(builder, "ro.product.locale", profile.getLocale());
+        append(builder, "ro.product.locale.language", localeLanguage(profile.getLocale()));
+        append(builder, "ro.product.locale.region", localeRegion(profile.getLocale()));
         append(builder, "persist.sys.usb.config", "none");
 
         builder.append("\n# WebView\n");
@@ -279,19 +272,7 @@ public class ConfigFileManager {
             }
         }
 
-        try (FileOutputStream outputStream = new FileOutputStream(configFile, false)) {
-            outputStream.write(builder.toString().getBytes(StandardCharsets.UTF_8));
-        }
-        makeConfigReadable(context, configFile);
-        writePublicMirror(builder.toString());
-        writeRootMirror(configFile);
-        mirrorForXposed(context, builder.toString());
-        grantConfigUriReadAccess(context);
-
-        Map<String, String> preserved = extraProperties == null
-            ? new LinkedHashMap<String, String>()
-            : new LinkedHashMap<>(extraProperties);
-        return new LoadedConfig(configFile, profile, preserved, selectedPresetId, customMode);
+        return builder.toString();
     }
 
     public File getConfigFile(Context context) {
@@ -328,6 +309,7 @@ public class ConfigFileManager {
         apply(profile::setSimOperatorNumeric, properties.get("gsm.sim.operator.numeric"));
         apply(profile::setSimCountryIso, properties.get("gsm.sim.operator.iso-country"));
         apply(profile::setTimezone, properties.get("persist.sys.timezone"));
+        apply(profile::setLocale, firstNonBlank(properties.get("persist.sys.locale"), properties.get("ro.product.locale")));
         apply(profile::setUserAgent, properties.get("webview.user_agent"));
         apply(profile::setSerialNumber, firstNonBlank(properties.get("ro.serialno"), properties.get("ro.boot.serialno")));
         apply(profile::setBootloader, properties.get("ro.bootloader"));
@@ -517,122 +499,24 @@ public class ConfigFileManager {
             "gsm.sim.operator.numeric",
             "gsm.sim.operator.iso-country",
             "persist.sys.timezone",
+            "persist.sys.locale",
+            "ro.product.locale",
+            "ro.product.locale.language",
+            "ro.product.locale.region",
             "persist.sys.usb.config",
             "webview.user_agent"
         ));
         return keys;
     }
 
-    private void mirrorForXposed(Context context, String content) {
-        try {
-            File prefsDir = new File(context.getApplicationInfo().dataDir, "shared_prefs");
-            File prefsFile = new File(prefsDir, MIRROR_PREFS_NAME + ".xml");
-            if (!prefsDir.exists()) {
-                prefsDir.mkdirs();
-            }
-            String xml = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
-                + "<map>\n"
-                + "    <string name=\"" + MIRROR_PREFS_KEY_CONTENT + "\">"
-                + xmlEscape(content)
-                + "</string>\n"
-                + "</map>\n";
-            try (FileOutputStream outputStream = new FileOutputStream(prefsFile, false)) {
-                outputStream.write(xml.getBytes(StandardCharsets.UTF_8));
-            }
-            if (prefsDir.exists()) {
-                prefsDir.setReadable(true, false);
-                prefsDir.setExecutable(true, false);
-            }
-            if (prefsFile.exists()) {
-                prefsFile.setReadable(true, false);
-            }
-        } catch (Throwable ignored) {
-        }
+    private String localeLanguage(String localeTag) {
+        Locale locale = Locale.forLanguageTag(nullable(localeTag));
+        return nullable(locale.getLanguage());
     }
 
-    private void makeConfigReadable(Context context, File configFile) {
-        try {
-            File dataDir = new File(context.getApplicationInfo().dataDir);
-            if (dataDir.exists()) {
-                dataDir.setReadable(true, false);
-                dataDir.setExecutable(true, false);
-            }
-            File filesDir = context.getFilesDir();
-            if (filesDir.exists()) {
-                filesDir.setReadable(true, false);
-                filesDir.setExecutable(true, false);
-            }
-            if (configFile.exists()) {
-                configFile.setReadable(true, false);
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private void writePublicMirror(String content) {
-        try {
-            File publicDir = new File(Environment.getExternalStorageDirectory(), PUBLIC_DIR_NAME);
-            if (!publicDir.exists()) {
-                publicDir.mkdirs();
-            }
-            File publicConfigFile = new File(publicDir, CONFIG_NAME);
-            try (FileOutputStream outputStream = new FileOutputStream(publicConfigFile, false)) {
-                outputStream.write(content.getBytes(StandardCharsets.UTF_8));
-            }
-            publicDir.setReadable(true, false);
-            publicDir.setExecutable(true, false);
-            publicConfigFile.setReadable(true, false);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private void writeRootMirror(File sourceFile) {
-        try {
-            String sourcePath = sourceFile.getAbsolutePath().replace("'", "'\\''");
-            String command = "cp '" + sourcePath + "' '" + ROOT_MIRROR_PATH + "' && chmod 644 '" + ROOT_MIRROR_PATH + "'";
-            Process process = new ProcessBuilder("su", "-c", command).redirectErrorStream(true).start();
-            process.waitFor();
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private void grantConfigUriReadAccess(Context context) {
-        try {
-            PackageManager packageManager = context.getPackageManager();
-            List<PackageInfo> installedPackages;
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                installedPackages = packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0));
-            } else {
-                installedPackages = packageManager.getInstalledPackages(0);
-            }
-            for (PackageInfo packageInfo : installedPackages) {
-                String packageName = packageInfo.packageName;
-                if (packageName == null || packageName.trim().isEmpty()) {
-                    continue;
-                }
-                try {
-                    context.grantUriPermission(
-                        packageName,
-                        ConfigProvider.CONFIG_URI,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    );
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private String xmlEscape(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&apos;");
+    private String localeRegion(String localeTag) {
+        Locale locale = Locale.forLanguageTag(nullable(localeTag));
+        return nullable(locale.getCountry()).toUpperCase(Locale.US);
     }
 
     private interface ValueSetter {

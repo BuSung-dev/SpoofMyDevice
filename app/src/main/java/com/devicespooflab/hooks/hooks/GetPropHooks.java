@@ -50,7 +50,7 @@ public final class GetPropHooks {
                             return;
                         }
 
-                        Process replacement = buildReplacementProcess(originalProcess, request);
+                        Process replacement = buildReplacementProcess(originalProcess, request, lpparam.packageName);
                         if (replacement != null) {
                             param.setResult(replacement);
                         }
@@ -61,19 +61,19 @@ public final class GetPropHooks {
             XposedBridge.log(TAG + ": Failed to hook ProcessBuilder.start(): " + throwable.getMessage());
         }
 
-        hookRuntimeExec();
+        hookRuntimeExec(lpparam.packageName);
     }
 
-    private static void hookRuntimeExec() {
-        hookRuntimeExecVariant(new Object[]{String.class});
-        hookRuntimeExecVariant(new Object[]{String[].class});
-        hookRuntimeExecVariant(new Object[]{String.class, String[].class});
-        hookRuntimeExecVariant(new Object[]{String[].class, String[].class});
-        hookRuntimeExecVariant(new Object[]{String.class, String[].class, java.io.File.class});
-        hookRuntimeExecVariant(new Object[]{String[].class, String[].class, java.io.File.class});
+    private static void hookRuntimeExec(String packageName) {
+        hookRuntimeExecVariant(packageName, new Object[]{String.class});
+        hookRuntimeExecVariant(packageName, new Object[]{String[].class});
+        hookRuntimeExecVariant(packageName, new Object[]{String.class, String[].class});
+        hookRuntimeExecVariant(packageName, new Object[]{String[].class, String[].class});
+        hookRuntimeExecVariant(packageName, new Object[]{String.class, String[].class, java.io.File.class});
+        hookRuntimeExecVariant(packageName, new Object[]{String[].class, String[].class, java.io.File.class});
     }
 
-    private static void hookRuntimeExecVariant(Object[] parameterTypes) {
+    private static void hookRuntimeExecVariant(String packageName, Object[] parameterTypes) {
         Object[] hookArgs = Arrays.copyOf(parameterTypes, parameterTypes.length + 1);
         hookArgs[parameterTypes.length] = new XC_MethodHook() {
             @Override
@@ -95,7 +95,7 @@ public final class GetPropHooks {
                     return;
                 }
 
-                Process replacement = buildReplacementProcess(originalProcess, request);
+                Process replacement = buildReplacementProcess(originalProcess, request, packageName);
                 if (replacement != null) {
                     param.setResult(replacement);
                 }
@@ -169,17 +169,20 @@ public final class GetPropHooks {
         return new GetPropRequest(true, null);
     }
 
-    private static Process buildReplacementProcess(Process originalProcess, GetPropRequest request) {
+    private static Process buildReplacementProcess(Process originalProcess, GetPropRequest request, String packageName) {
         if (request.fullDump) {
             String originalStdout = readStream(originalProcess.getInputStream());
             String originalStderr = readStream(originalProcess.getErrorStream());
             int exitCode = waitForExit(originalProcess);
-            String rewritten = rewriteGetPropDump(originalStdout);
+            String rewritten = rewriteGetPropDump(originalStdout, packageName);
             return new SimpleProcess(rewritten, originalStderr, exitCode);
         }
 
         String key = request.propertyKey;
         if (key == null || key.isEmpty()) {
+            return null;
+        }
+        if (ConfigManager.shouldBypassVersionSpoof(packageName) && isVersionProperty(key)) {
             return null;
         }
 
@@ -194,8 +197,11 @@ public final class GetPropHooks {
         return new SimpleProcess(spoofedValue + "\n", originalStderr, exitCode);
     }
 
-    private static String rewriteGetPropDump(String stdout) {
+    private static String rewriteGetPropDump(String stdout, String packageName) {
         Map<String, String> spoofed = new LinkedHashMap<>(ConfigManager.getEffectiveSystemProperties());
+        if (ConfigManager.shouldBypassVersionSpoof(packageName)) {
+            spoofed.entrySet().removeIf(entry -> isVersionProperty(entry.getKey()));
+        }
         if (spoofed.isEmpty()) {
             return stdout;
         }
@@ -275,6 +281,13 @@ public final class GetPropHooks {
         String normalized = value.replace('\\', '/');
         int slash = normalized.lastIndexOf('/');
         return (slash >= 0 ? normalized.substring(slash + 1) : normalized).toLowerCase(Locale.US);
+    }
+
+    private static boolean isVersionProperty(String key) {
+        return key != null
+            && (key.startsWith("ro.build.version.")
+                || key.startsWith("ro.product.build.version.")
+                || key.contains(".build.version."));
     }
 
     private static final class GetPropRequest {

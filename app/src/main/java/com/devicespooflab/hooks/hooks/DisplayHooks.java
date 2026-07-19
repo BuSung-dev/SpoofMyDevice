@@ -2,9 +2,12 @@ package com.devicespooflab.hooks.hooks;
 
 import android.content.res.Configuration;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.util.DisplayMetrics;
 
 import com.devicespooflab.hooks.utils.ConfigManager;
+
+import java.util.Locale;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -21,6 +24,7 @@ public class DisplayHooks {
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
         hookResourcesMetrics();
         hookDisplayMetrics(lpparam);
+        hookWindowMetrics(lpparam);
     }
 
     private static void hookResourcesMetrics() {
@@ -126,6 +130,104 @@ public class DisplayHooks {
                 });
         } catch (Throwable ignored) {
         }
+
+        hookDisplayDimension(displayClass, "getWidth", true);
+        hookDisplayDimension(displayClass, "getHeight", false);
+
+        try {
+            XposedHelpers.findAndHookMethod(displayClass, "getRectSize", Rect.class,
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        if (!ConfigManager.shouldApplyScreenMetrics()) {
+                            return;
+                        }
+                        Rect rect = (Rect) param.args[0];
+                        if (rect != null) {
+                            applyBounds(rect);
+                        }
+                    }
+                });
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            XposedHelpers.findAndHookMethod(displayClass, "getCurrentSizeRange", Point.class, Point.class,
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        if (!ConfigManager.shouldApplyScreenMetrics()) {
+                            return;
+                        }
+                        Point smallest = (Point) param.args[0];
+                        Point largest = (Point) param.args[1];
+                        int shortSide = Math.min(ConfigManager.getScreenWidth(), ConfigManager.getScreenHeight());
+                        int longSide = Math.max(ConfigManager.getScreenWidth(), ConfigManager.getScreenHeight());
+                        if (smallest != null) {
+                            smallest.set(shortSide, shortSide);
+                        }
+                        if (largest != null) {
+                            largest.set(longSide, longSide);
+                        }
+                    }
+                });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void hookDisplayDimension(Class<?> displayClass, String methodName, boolean width) {
+        try {
+            XposedHelpers.findAndHookMethod(displayClass, methodName,
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        if (!ConfigManager.shouldApplyScreenMetrics()) {
+                            return;
+                        }
+                        String field = width ? ConfigManager.FIELD_SCREEN_WIDTH : ConfigManager.FIELD_SCREEN_HEIGHT;
+                        if (ConfigManager.isSpoofEnabled(field)) {
+                            param.setResult(width ? ConfigManager.getScreenWidth() : ConfigManager.getScreenHeight());
+                        }
+                    }
+                });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void hookWindowMetrics(XC_LoadPackage.LoadPackageParam lpparam) {
+        Class<?> windowMetricsClass = XposedHelpers.findClassIfExists("android.view.WindowMetrics", lpparam.classLoader);
+        if (windowMetricsClass == null) {
+            return;
+        }
+        try {
+            XposedHelpers.findAndHookMethod(windowMetricsClass, "getBounds",
+                new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        if (!ConfigManager.shouldApplyScreenMetrics()) {
+                            return;
+                        }
+                        Rect bounds = (Rect) param.getResult();
+                        if (bounds != null) {
+                            Rect spoofedBounds = new Rect(bounds);
+                            applyBounds(spoofedBounds);
+                            param.setResult(spoofedBounds);
+                        }
+                    }
+                });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void applyBounds(Rect bounds) {
+        int width = ConfigManager.isSpoofEnabled(ConfigManager.FIELD_SCREEN_WIDTH)
+            ? ConfigManager.getScreenWidth()
+            : bounds.width();
+        int height = ConfigManager.isSpoofEnabled(ConfigManager.FIELD_SCREEN_HEIGHT)
+            ? ConfigManager.getScreenHeight()
+            : bounds.height();
+        bounds.right = bounds.left + width;
+        bounds.bottom = bounds.top + height;
     }
 
     private static void applyMetrics(DisplayMetrics metrics) {
@@ -148,6 +250,7 @@ public class DisplayHooks {
     }
 
     private static void applyConfiguration(Configuration configuration) {
+        applyLocale(configuration);
         if (!ConfigManager.shouldApplyScreenMetrics()) {
             return;
         }
@@ -199,5 +302,17 @@ public class DisplayHooks {
             sizeMask = Configuration.SCREENLAYOUT_SIZE_SMALL;
         }
         configuration.screenLayout = (configuration.screenLayout & ~Configuration.SCREENLAYOUT_SIZE_MASK) | sizeMask;
+    }
+
+    private static void applyLocale(Configuration configuration) {
+        String languageTag = ConfigManager.getLocaleTag();
+        if (languageTag == null) {
+            return;
+        }
+        Locale locale = Locale.forLanguageTag(languageTag.replace('_', '-'));
+        if (locale.getLanguage().isEmpty()) {
+            return;
+        }
+        configuration.setLocale(locale);
     }
 }

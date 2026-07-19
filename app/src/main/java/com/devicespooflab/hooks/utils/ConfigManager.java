@@ -12,13 +12,7 @@ import android.os.HandlerThread;
 
 import com.devicespooflab.hooks.ConfigProvider;
 import com.devicespooflab.hooks.ConfigBridgeReceiver;
-import com.devicespooflab.hooks.data.ConfigFileManager;
-
-import de.robv.android.xposed.XSharedPreferences;
-
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -32,14 +26,12 @@ import java.util.concurrent.TimeUnit;
 /**
  * Manages configuration for spoofed values.
  *
- * Important detail:
- * - The module app itself can read its private config file directly.
- * - Target apps cannot read another app's private storage, so they must read through
- *   the exported ConfigProvider. If that fails, we fall back to the legacy file paths
- *   and finally to embedded defaults.
+ * Target processes request the profile assigned to their package through the exported
+ * config provider. Packages without an assignment are left unhooked by MainHook.
  */
 public class ConfigManager {
 
+    public static final String ACTION_CONFIG_CHANGED = "com.spoofmydevice.action.CONFIG_CHANGED";
     public static final String KEY_APPLY_SCREEN_METRICS = "device.apply_screen_metrics";
     public static final String KEY_SPOOF_IMEI = "device.imei";
     public static final String KEY_SPOOF_MEID = "device.meid";
@@ -65,6 +57,7 @@ public class ConfigManager {
     public static final String FIELD_SDK = "sdk";
     public static final String FIELD_SECURITY_PATCH = "security_patch";
     public static final String FIELD_BUILD_ID = "build_id";
+    public static final String FIELD_BUILD_DISPLAY_ID = "build_display_id";
     public static final String FIELD_BUILD_INCREMENTAL = "build_incremental";
     public static final String FIELD_FINGERPRINT = "fingerprint";
     public static final String FIELD_SCREEN_WIDTH = "screen_width";
@@ -74,6 +67,8 @@ public class ConfigManager {
     public static final String FIELD_OPERATOR_NUMERIC = "operator_numeric";
     public static final String FIELD_SIM_COUNTRY = "sim_country";
     public static final String FIELD_TIMEZONE = "timezone";
+    public static final String FIELD_LOCALE = "locale";
+    public static final String FIELD_ANDROID_ID = "android_id";
     public static final String FIELD_IMEI = "imei";
     public static final String FIELD_MEID = "meid";
     public static final String FIELD_IMSI = "imsi";
@@ -84,22 +79,16 @@ public class ConfigManager {
     public static final String FIELD_MEDIA_DRM_ID = "media_drm_id";
     public static final String FIELD_APP_SET_ID = "app_set_id";
 
-    private static final String[] CONFIG_PATHS = {
-        "/data/local/tmp/spoofmydevice_device_profile.conf",
-        "/data/user/0/com.spoofmydevice/files/device_profile.conf",
-        "/data/user/0/com.devicespooflab.hooks/files/device_profile.conf",
-        "/data/data/com.spoofmydevice/files/device_profile.conf",
-        "/data/data/com.devicespooflab.hooks/files/device_profile.conf",
-        "/sdcard/SpoofMyDevice/device_profile.conf",
-        "/sdcard/DeviceSpoofLab-Hooks/device_profile.conf"
-    };
     private static final long RETRY_INTERVAL_MS = 1500L;
 
     private static Map<String, String> allProperties = null;
     private static boolean usingEmbeddedDefaults = true;
+    private static boolean assignedProfile = false;
+    private static String targetPackageName = null;
     private static long lastReloadAttemptElapsed = 0L;
 
-    public static synchronized void init() {
+    public static synchronized void init(String packageName) {
+        targetPackageName = packageName;
         reload(false);
     }
 
@@ -114,6 +103,11 @@ public class ConfigManager {
     public static synchronized boolean isUsingEmbeddedDefaults() {
         ensureFreshConfig();
         return usingEmbeddedDefaults;
+    }
+
+    public static synchronized boolean hasAssignedProfile() {
+        ensureFreshConfig();
+        return assignedProfile;
     }
 
     private static void reload(boolean force) {
@@ -133,6 +127,7 @@ public class ConfigManager {
         LoadedProperties loadedProperties = readConfig(context);
         allProperties = loadedProperties.properties;
         usingEmbeddedDefaults = loadedProperties.fromEmbeddedDefaults;
+        assignedProfile = !usingEmbeddedDefaults && !allProperties.isEmpty();
         resetGeneratedCaches();
     }
 
@@ -143,36 +138,14 @@ public class ConfigManager {
     }
 
     private static LoadedProperties readConfig(Context preferredContext) {
-        Map<String, String> configFromBridgeReceiver = readFromBridgeReceiver(preferredContext);
-        if (!configFromBridgeReceiver.isEmpty()) {
-            return new LoadedProperties(configFromBridgeReceiver, false);
-        }
-
-        Map<String, String> configFromRootMirror = readFromRootMirrorFile(preferredContext);
-        if (!configFromRootMirror.isEmpty()) {
-            return new LoadedProperties(configFromRootMirror, false);
-        }
-
-        Map<String, String> configFromReadableMirror = readFromReadableMirrorFile(preferredContext);
-        if (!configFromReadableMirror.isEmpty()) {
-            return new LoadedProperties(configFromReadableMirror, false);
-        }
-
-        Map<String, String> configFromXSharedPreferences = readFromXSharedPreferences(preferredContext);
-        if (!configFromXSharedPreferences.isEmpty()) {
-            return new LoadedProperties(configFromXSharedPreferences, false);
-        }
-
         Map<String, String> configFromProvider = readFromProvider(preferredContext);
         if (!configFromProvider.isEmpty()) {
             return new LoadedProperties(configFromProvider, false);
         }
 
-        for (String configPath : CONFIG_PATHS) {
-            Map<String, String> config = readFromFile(configPath);
-            if (!config.isEmpty()) {
-                return new LoadedProperties(config, false);
-            }
+        Map<String, String> configFromBridgeReceiver = readFromBridgeReceiver(preferredContext);
+        if (!configFromBridgeReceiver.isEmpty()) {
+            return new LoadedProperties(configFromBridgeReceiver, false);
         }
 
         return new LoadedProperties(getEmbeddedDefaults(), true);
@@ -185,7 +158,9 @@ public class ConfigManager {
                 return new HashMap<>();
             }
 
-            Uri configUri = ConfigProvider.CONFIG_URI;
+            Uri configUri = ConfigProvider.CONFIG_URI.buildUpon()
+                .appendQueryParameter(ConfigProvider.QUERY_PACKAGE, targetPackageName)
+                .build();
             try (InputStream inputStream = context.getContentResolver().openInputStream(configUri)) {
                 if (inputStream != null) {
                     return parseConfigStream(inputStream);
@@ -201,7 +176,7 @@ public class ConfigManager {
             Bundle bundle = context.getContentResolver().call(
                 ConfigProvider.CONFIG_URI,
                 ConfigProvider.METHOD_GET_CONFIG,
-                null,
+                targetPackageName,
                 null
             );
             if (bundle != null) {
@@ -219,7 +194,13 @@ public class ConfigManager {
                 return new HashMap<>();
             }
             Uri configUri = ConfigProvider.CONFIG_URI;
-            try (Cursor cursor = context.getContentResolver().query(configUri, null, null, null, null)) {
+            try (Cursor cursor = context.getContentResolver().query(
+                configUri,
+                null,
+                null,
+                new String[]{targetPackageName},
+                null
+            )) {
                 if (cursor != null && cursor.moveToFirst()) {
                     int contentColumn = cursor.getColumnIndex(ConfigProvider.COLUMN_CONTENT);
                     if (contentColumn >= 0) {
@@ -230,14 +211,6 @@ public class ConfigManager {
                         }
                     }
                 }
-            }
-        } catch (Exception exception) {
-        }
-        try {
-            String shellContent = readProviderThroughShell();
-            if (shellContent != null) {
-                InputStream stream = new java.io.ByteArrayInputStream(shellContent.getBytes(StandardCharsets.UTF_8));
-                return parseConfigStream(stream);
             }
         } catch (Exception exception) {
         }
@@ -269,6 +242,7 @@ public class ConfigManager {
 
             Intent intent = new Intent(ConfigBridgeReceiver.ACTION_GET_CONFIG);
             intent.setClassName("com.spoofmydevice", "com.devicespooflab.hooks.ConfigBridgeReceiver");
+            intent.putExtra(ConfigBridgeReceiver.EXTRA_PACKAGE_NAME, targetPackageName);
             context.sendOrderedBroadcast(
                 intent,
                 null,
@@ -297,125 +271,6 @@ public class ConfigManager {
             } catch (Throwable ignored) {
             }
         }
-    }
-
-    private static Map<String, String> readFromRootMirrorFile(Context preferredContext) {
-        File mirrorFile = new File("/data/local/tmp/spoofmydevice_device_profile.conf");
-        try {
-            if (!mirrorFile.exists() || !mirrorFile.canRead()) {
-                debugLog(preferredContext, "root mirror unavailable exists=" + mirrorFile.exists() + " canRead=" + mirrorFile.canRead());
-                return new HashMap<>();
-            }
-            try (InputStream inputStream = new FileInputStream(mirrorFile)) {
-                return parseConfigStream(inputStream);
-            }
-        } catch (Exception exception) {
-            return new HashMap<>();
-        }
-    }
-
-    private static Map<String, String> readFromReadableMirrorFile(Context preferredContext) {
-        File mirrorFile = new File("/data/user/0/com.spoofmydevice/shared_prefs/" + ConfigFileManager.MIRROR_PREFS_NAME + ".xml");
-        try {
-            if (!mirrorFile.exists() || !mirrorFile.canRead()) {
-                debugLog(preferredContext, "readable mirror unavailable exists=" + mirrorFile.exists() + " canRead=" + mirrorFile.canRead());
-                return new HashMap<>();
-            }
-            String xml;
-            try (InputStream inputStream = new FileInputStream(mirrorFile)) {
-                xml = readProcessOutput(inputStream);
-            }
-            if (xml == null || xml.isEmpty()) {
-                return new HashMap<>();
-            }
-            String openTag = "<string name=\"" + ConfigFileManager.MIRROR_PREFS_KEY_CONTENT + "\">";
-            int start = xml.indexOf(openTag);
-            int end = xml.indexOf("</string>");
-            if (start < 0 || end < 0 || end <= start) {
-                return new HashMap<>();
-            }
-            String content = xml.substring(start + openTag.length(), end)
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&quot;", "\"")
-                .replace("&apos;", "'")
-                .replace("&amp;", "&");
-            InputStream stream = new java.io.ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
-            return parseConfigStream(stream);
-        } catch (Exception exception) {
-            return new HashMap<>();
-        }
-    }
-
-    private static Map<String, String> readFromXSharedPreferences(Context preferredContext) {
-        try {
-            XSharedPreferences preferences = new XSharedPreferences(
-                new File("/data/user/0/com.spoofmydevice/shared_prefs/" + ConfigFileManager.MIRROR_PREFS_NAME + ".xml")
-            );
-            preferences.reload();
-            String content = preferences.getString(ConfigFileManager.MIRROR_PREFS_KEY_CONTENT, null);
-            if (content != null && !content.trim().isEmpty()) {
-                InputStream stream = new java.io.ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
-                return parseConfigStream(stream);
-            }
-        } catch (Throwable exception) {
-        }
-        return new HashMap<>();
-    }
-
-    private static void debugLog(Context context, String message) {
-    }
-
-    private static String readProviderThroughShell() {
-        String[] command = new String[] {
-            "/system/bin/sh",
-            "-c",
-            "/system/bin/content call --uri content://com.spoofmydevice.configprovider/device_profile.conf --method get_config"
-        };
-        try {
-            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-            String output = readProcessOutput(process.getInputStream());
-            int exitCode = process.waitFor();
-            if (output == null || output.trim().isEmpty()) {
-                return null;
-            }
-            int start = output.indexOf("content=");
-            if (start < 0) {
-                return null;
-            }
-            return output.substring(start + "content=".length()).trim();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static String readProcessOutput(InputStream inputStream) throws Exception {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-            StringBuilder builder = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (builder.length() > 0) {
-                    builder.append('\n');
-                }
-                builder.append(line);
-            }
-            return builder.toString();
-        }
-    }
-
-    private static Map<String, String> readFromFile(String path) {
-        try {
-            File configFile = new File(path);
-            if (!configFile.exists() || !configFile.canRead()) {
-                return new HashMap<>();
-            }
-
-            try (InputStream inputStream = new FileInputStream(configFile)) {
-                return parseConfigStream(inputStream);
-            }
-        } catch (Exception exception) {
-        }
-        return new HashMap<>();
     }
 
     private static Map<String, String> parseConfigStream(InputStream inputStream) {
@@ -590,6 +445,10 @@ public class ConfigManager {
         defaults.put("gsm.sim.operator.numeric", "310260");
         defaults.put("gsm.sim.operator.iso-country", "us");
         defaults.put("persist.sys.timezone", "America/Los_Angeles");
+        defaults.put("persist.sys.locale", "en-US");
+        defaults.put("ro.product.locale", "en-US");
+        defaults.put("ro.product.locale.language", "en");
+        defaults.put("ro.product.locale.region", "US");
         defaults.put("persist.sys.usb.config", "none");
         defaults.put("webview.user_agent", "Mozilla/5.0 (Linux; Android 15; Pixel 7 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36");
 
@@ -831,7 +690,10 @@ public class ConfigManager {
         if (key.equals("ro.board.platform")) {
             return FIELD_BOARD_PLATFORM;
         }
-        if (key.equals("ro.build.id") || key.equals("ro.build.display.id") || key.equals("ro.product.build.id")) {
+        if (key.equals("ro.build.display.id")) {
+            return FIELD_BUILD_DISPLAY_ID;
+        }
+        if (key.equals("ro.build.id") || key.equals("ro.product.build.id")) {
             return FIELD_BUILD_ID;
         }
         if (key.equals("ro.build.version.incremental") || key.equals("ro.product.build.version.incremental")) {
@@ -880,7 +742,27 @@ public class ConfigManager {
         if (key.equals("persist.sys.timezone")) {
             return FIELD_TIMEZONE;
         }
+        if (key.equals("persist.sys.locale")
+            || key.equals("ro.product.locale")
+            || key.equals("ro.product.locale.language")
+            || key.equals("ro.product.locale.region")) {
+            return FIELD_LOCALE;
+        }
         return null;
+    }
+
+    public static String getTimezone() {
+        if (!isSpoofEnabled(FIELD_TIMEZONE)) {
+            return null;
+        }
+        return getOptionalConfigValue("persist.sys.timezone");
+    }
+
+    public static String getLocaleTag() {
+        if (!isSpoofEnabled(FIELD_LOCALE)) {
+            return null;
+        }
+        return getFirstOptionalConfigValue("persist.sys.locale", "ro.product.locale");
     }
 
     public static String getIMEI() {
@@ -937,6 +819,9 @@ public class ConfigManager {
     }
 
     public static String getAndroidId() {
+        if (!isSpoofEnabled(FIELD_ANDROID_ID)) {
+            return null;
+        }
         return getOptionalConfigValue("ANDROID_ID");
     }
 

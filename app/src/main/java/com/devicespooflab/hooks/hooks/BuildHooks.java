@@ -22,6 +22,7 @@ public class BuildHooks {
     private static final String TAG = "DeviceSpoofLab-Build";
     private static final Map<String, Object> ORIGINAL_BUILD_FIELDS = new HashMap<>();
     private static final Map<String, Object> ORIGINAL_VERSION_FIELDS = new HashMap<>();
+    private static boolean serialHookInstalled;
 
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
         reapply(lpparam.classLoader, lpparam.packageName);
@@ -61,7 +62,9 @@ public class BuildHooks {
                     }
                 }
             }
-            hookGetSerial(buildClass);
+            if (!serialHookInstalled) {
+                hookGetSerial(buildClass);
+            }
 
             XposedBridge.log(TAG + ": Build fields and getSerial hooked");
         } catch (Throwable throwable) {
@@ -91,7 +94,7 @@ public class BuildHooks {
         applyOrRestoreString(buildClass, "HARDWARE", ConfigManager.FIELD_HARDWARE, ConfigManager.getBuildHardware());
         applyOrRestoreString(buildClass, "FINGERPRINT", ConfigManager.FIELD_FINGERPRINT, ConfigManager.getBuildFingerprint());
         applyOrRestoreString(buildClass, "ID", ConfigManager.FIELD_BUILD_ID, ConfigManager.getBuildId());
-        applyOrRestoreString(buildClass, "DISPLAY", ConfigManager.FIELD_BUILD_ID, ConfigManager.getBuildDisplay());
+        applyOrRestoreString(buildClass, "DISPLAY", ConfigManager.FIELD_BUILD_DISPLAY_ID, ConfigManager.getBuildDisplay());
         setStaticString(buildClass, "TAGS", ConfigManager.getBuildTags());
         setStaticString(buildClass, "TYPE", ConfigManager.getBuildType());
         setStaticString(buildClass, "BOOTLOADER", ConfigManager.getBuildBootloader());
@@ -250,6 +253,7 @@ public class BuildHooks {
                         }
                     }
                 });
+            serialHookInstalled = true;
         } catch (NoSuchMethodError ignored) {
         } catch (Throwable throwable) {
             XposedBridge.log(TAG + ": Failed to hook getSerial(): " + throwable.getMessage());
