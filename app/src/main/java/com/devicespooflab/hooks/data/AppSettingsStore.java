@@ -5,9 +5,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.core.os.LocaleListCompat;
-
 import com.devicespooflab.hooks.R;
 
 public final class AppSettingsStore {
@@ -34,6 +31,7 @@ public final class AppSettingsStore {
     private static final String KEY_USE_SYSTEM_COLORS = "use_system_colors";
     private static final String KEY_COLOR_STYLE = "color_style";
     private static final String KEY_PRESET_SOURCE_URL = "preset_source_url";
+    private static final String KEY_SAFE_MODE_EXPLANATION_DISMISSED = "safe_mode_explanation_dismissed";
 
     private AppSettingsStore() {
     }
@@ -46,19 +44,12 @@ public final class AppSettingsStore {
         activity.setTheme(resolveStaticTheme(getColorStyle(activity)));
     }
 
-    public static void apply(Activity activity) {
-        applyThemeIfNeeded(getThemeMode(activity));
-        applyLanguageIfNeeded(getLanguageMode(activity));
-    }
-
     public static String getThemeMode(Context context) {
         return normalizeTheme(preferences(context).getString(KEY_THEME_MODE, THEME_SYSTEM));
     }
 
     public static void setThemeMode(Context context, String value) {
-        String normalized = normalizeTheme(value);
-        preferences(context).edit().putString(KEY_THEME_MODE, normalized).apply();
-        applyThemeIfNeeded(normalized);
+        preferences(context).edit().putString(KEY_THEME_MODE, normalizeTheme(value)).apply();
     }
 
     public static String getLanguageMode(Context context) {
@@ -66,9 +57,7 @@ public final class AppSettingsStore {
     }
 
     public static void setLanguageMode(Context context, String value) {
-        String normalized = normalizeLanguage(value);
-        preferences(context).edit().putString(KEY_LANGUAGE_MODE, normalized).apply();
-        applyLanguageIfNeeded(normalized);
+        preferences(context).edit().putString(KEY_LANGUAGE_MODE, normalizeLanguage(value)).apply();
     }
 
     public static boolean isSystemColorEnabled(Context context) {
@@ -99,54 +88,16 @@ public final class AppSettingsStore {
             .apply();
     }
 
+    public static boolean isSafeModeExplanationDismissed(Context context) {
+        return preferences(context).getBoolean(KEY_SAFE_MODE_EXPLANATION_DISMISSED, false);
+    }
+
+    public static void setSafeModeExplanationDismissed(Context context, boolean dismissed) {
+        preferences(context).edit().putBoolean(KEY_SAFE_MODE_EXPLANATION_DISMISSED, dismissed).apply();
+    }
+
     private static SharedPreferences preferences(Context context) {
         return context.getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-    }
-
-    private static void applyThemeIfNeeded(String themeMode) {
-        int nightMode;
-        switch (themeMode) {
-            case THEME_LIGHT:
-                nightMode = AppCompatDelegate.MODE_NIGHT_NO;
-                break;
-            case THEME_DARK:
-                nightMode = AppCompatDelegate.MODE_NIGHT_YES;
-                break;
-            case THEME_SYSTEM:
-            default:
-                nightMode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
-                break;
-        }
-        if (AppCompatDelegate.getDefaultNightMode() != nightMode) {
-            AppCompatDelegate.setDefaultNightMode(nightMode);
-        }
-    }
-
-    private static void applyLanguageIfNeeded(String languageMode) {
-        LocaleListCompat locales;
-        switch (languageMode) {
-            case LANGUAGE_ENGLISH:
-                locales = LocaleListCompat.forLanguageTags("en");
-                break;
-            case LANGUAGE_KOREAN:
-                locales = LocaleListCompat.forLanguageTags("ko");
-                break;
-            case LANGUAGE_JAPANESE:
-                locales = LocaleListCompat.forLanguageTags("ja");
-                break;
-            case LANGUAGE_CHINESE_SIMPLIFIED:
-                locales = LocaleListCompat.forLanguageTags("zh-CN");
-                break;
-            case LANGUAGE_DEFAULT:
-            default:
-                locales = LocaleListCompat.getEmptyLocaleList();
-                break;
-        }
-        String currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags();
-        String desiredTags = locales.toLanguageTags();
-        if (!currentTags.equals(desiredTags)) {
-            AppCompatDelegate.setApplicationLocales(locales);
-        }
     }
 
     private static String normalizeTheme(String value) {

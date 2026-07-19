@@ -1,9 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SpoofMyDevice</string>
+    <string name="xposed_description">위조 기기 프로필과 런타임 후킹 설정을 관리하는 LSPosed 컴패니언 도구입니다.</string>
     <string name="tab_home">홈</string>
-    <string name="tab_settings">기기 설정</string>
+    <string name="home_title">Spoof My Device</string>
     <string name="tab_app_settings">설정</string>
+    <string name="tab_app_profiles">앱별 설정</string>
+    <string name="tab_profile_management">프로필 관리</string>
+    <string name="back">뒤로</string>
+    <string name="app_profile_search">앱 검색</string>
+    <string name="app_profile_loading_apps">앱을 불러오는 중…</string>
+    <string name="app_profile_loading_profiles">프로필을 불러오는 중…</string>
+    <string name="app_profile_unassigned">미설정</string>
+    <string name="app_profile_none">프로필 적용 안 함</string>
+    <string name="app_profile_none_summary">이 앱에는 위조 프로필을 적용하지 않습니다.</string>
+    <string name="app_profile_section">프로필</string>
+    <string name="app_profile_select">적용할 프로필</string>
+    <string name="app_profile_create">새 프로필</string>
+    <string name="app_profile_name">프로필 이름</string>
+    <string name="app_profile_create_confirm">만들기</string>
+    <string name="app_profile_assignment_title">프로필 선택</string>
+    <string name="app_profile_assignment_count">%1$d개 앱에서 사용 중</string>
+    <string name="profile_management_list_title">저장된 프로필</string>
+    <string name="profile_details_title">프로필 정보</string>
+    <string name="profile_create_title">프로필 만들기</string>
+    <string name="profile_edit_title">프로필 수정</string>
+    <string name="profile_editor_loading">프로필 불러오는 중…</string>
+    <string name="profile_delete">삭제</string>
+    <string name="profile_delete_title">프로필을 삭제할까요?</string>
+    <string name="profile_delete_message">%1$s 프로필을 삭제하면 연결된 %2$d개 앱의 설정도 해제됩니다.</string>
+    <string name="profile_deleted">%1$s 프로필을 삭제했습니다.</string>
+    <string name="profile_delete_failed">프로필을 삭제하지 못했습니다.</string>
+    <string name="profile_default_name">기본 프로필</string>
+    <string name="profile_saved">%1$s 프로필을 저장했습니다.</string>
+    <string name="profile_created">%1$s 프로필을 만들었습니다.</string>
     <string name="tab_real_info">앱 정보</string>
     <string name="toolbar_home">홈</string>
     <string name="toolbar_settings">기기 설정</string>
@@ -24,6 +54,8 @@
     <string name="home_active_profile_title">활성 프로필</string>
     <string name="home_config_file_title">설정 파일</string>
     <string name="home_info_profile_model_title">기기 모델</string>
+    <string name="home_info_profile_preset_value_format">%1$s / %2$s</string>
+    <string name="home_info_config_value_format">%1$s / %2$s</string>
     <string name="home_info_profile_preset_title">프리셋</string>
     <string name="home_info_profile_mode_title">모드</string>
     <string name="home_info_profile_android_title">Android 버전</string>
@@ -43,7 +75,6 @@
     <string name="home_not_available">사용 불가</string>
     <string name="module_status_active">활성화</string>
     <string name="module_status_inactive">비활성화</string>
-    <string name="home_scope_hint">대상 앱을 LSPosed scope에 추가하고, 프로필 저장 후 앱을 다시 시작하세요.</string>
     <string name="preset_unknown">커스텀 스냅샷</string>
     <string name="preset_current_device_brand">현재</string>
     <string name="preset_current_device_model">기기</string>
@@ -56,6 +87,7 @@
     <string name="settings_diagnostics_title">진단</string>
     <string name="settings_presets_title">프리셋</string>
     <string name="settings_runtime_title">런타임 옵션</string>
+    <string name="settings_tools_title">도구</string>
     <string name="settings_real_info_title">앱 정보</string>
     <string name="settings_preset_source_title">프리셋 소스 URL</string>
     <string name="settings_preset_source_message">프리셋 JSON 파일이 들어 있는 GitHub 저장소 URL을 입력하세요.</string>
@@ -84,7 +116,7 @@
     <string name="language_japanese">日本語</string>
     <string name="language_chinese">简体中文</string>
     <string name="settings_theme_helper">컴패니언 앱의 표시 방식을 선택합니다.</string>
-    <string name="settings_language_helper">기본값은 시스템 언어를 따릅니다. 영어, 한국어, 일본어를 강제로 선택할 수도 있습니다.</string>
+    <string name="settings_language_helper">언어를 설정할 수 있습니다.</string>
     <string name="settings_theme_summary">현재: %1$s</string>
     <string name="settings_language_summary">현재: %1$s</string>
     <string name="settings_real_info_summary">앱 정보, 크레딧, 프로젝트 링크를 엽니다.</string>
@@ -94,10 +126,14 @@
     <string name="settings_resolution_title">스푸핑 해상도 적용</string>
     <string name="settings_resolution_summary">기본값은 꺼짐입니다. 강제 적용 시 일부 앱이 깨질 수 있습니다.</string>
     <string name="settings_safe_mode_title">안전 모드</string>
-    <string name="settings_safe_mode_summary_disabled">일부 스푸핑 옵션을 비활성화 해 크래시를 줄입니다.</string>
+    <string name="settings_safe_mode_summary_disabled">선택한 앱에 실제 Android 버전을 유지하여 충돌을 방지합니다.</string>
     <string name="settings_safe_mode_summary_count">%1$d개 앱 보호 중</string>
     <string name="settings_safe_mode_failed">안전 모드 업데이트에 실패했습니다.</string>
     <string name="safe_mode_hide_system_apps">시스템 앱 숨기기</string>
+    <string name="safe_mode_empty">설치된 앱이 없습니다.</string>
+    <string name="safe_mode_system_framework">시스템 프레임워크</string>
+    <string name="safe_mode_version_format">버전: %1$s</string>
+    <string name="safe_mode_version_unknown">버전: 알 수 없음</string>
     <string name="settings_section_preset_mode">프리셋 및 모드</string>
     <string name="settings_section_identity">기기 정보</string>
     <string name="settings_section_build_display">빌드 및 디스플레이</string>
@@ -119,6 +155,7 @@
     <string name="settings_field_sdk_level">SDK 레벨</string>
     <string name="settings_field_security_patch">보안 패치</string>
     <string name="settings_field_build_id">빌드 ID</string>
+    <string name="settings_field_build_display_id">디스플레이 ID</string>
     <string name="settings_field_build_incremental">빌드 Incremental</string>
     <string name="settings_field_fingerprint">핑거프린트</string>
     <string name="settings_field_screen_width">화면 너비</string>
@@ -128,6 +165,8 @@
     <string name="settings_field_operator_numeric">통신사 코드</string>
     <string name="settings_field_sim_country_iso">SIM 국가 ISO</string>
     <string name="settings_field_timezone">시간대</string>
+    <string name="settings_field_locale">로케일</string>
+    <string name="settings_field_device_id">디바이스 ID</string>
     <string name="settings_field_imei">IMEI</string>
     <string name="settings_field_meid">MEID</string>
     <string name="settings_field_imsi">IMSI</string>
@@ -139,6 +178,9 @@
     <string name="settings_field_app_set_id">App Set ID</string>
     <string name="settings_custom_summary">%1$s 기반 커스텀 편집 - %2$s</string>
     <string name="settings_preset_summary">%1$s - %2$s</string>
+    <string name="settings_app_info_title">앱 정보</string>
+    <string name="settings_app_info_body">LSPosed 모듈용 컴패니언 도구입니다. 이 페이지에서 런타임 앱 설정과 진단 바로가기를 확인할 수 있습니다.</string>
+    <string name="settings_app_info_format">%1$s\n\n버전: %2$s (%3$d)\n패키지: %4$s</string>
     <string name="settings_saved">설정이 업데이트되었습니다.</string>
     <string name="app_info_intro_format">%1$s\n%2$s</string>
     <string name="app_info_overview_title">개요</string>
@@ -148,7 +190,7 @@
     <string name="app_info_package_title">패키지명</string>
     <string name="app_info_version_format">버전 %1$s (%2$d)</string>
     <string name="app_info_overview_format">앱 이름: %1$s\n버전: %2$s (%3$d)\n패키지: %4$s</string>
-    <string name="app_info_credits_body">원본 DeviceSpoofLab Hooks 프로젝트를 기반으로 합니다.\nLSPosed 및 Xposed 커뮤니티에 감사드립니다.</string>
+    <string name="app_info_credits_body">원본 DeviceSpoofLab Hooks 프로젝트를 기반으로 합니다. LSPosed 및 Xposed 커뮤니티에 감사드립니다.</string>
     <string name="app_info_links_body">GitHub 프로젝트 링크와 앞으로의 소스 링크가 여기에 표시됩니다.</string>
     <string name="app_info_github_button">GitHub 열기</string>
     <string name="app_info_github_title">GitHub</string>
@@ -162,4 +204,14 @@
     <string name="real_info_saved_format">프리셋: %1$s\n모드: %2$s\n대상 모델: %3$s\n대상 기기: %4$s\n대상 핑거프린트: %5$s\n대상 해상도: %6$dx%7$d / %8$ddpi\n스푸핑 해상도 적용: %9$s</string>
     <string name="state_enabled">활성화</string>
     <string name="state_disabled">비활성화</string>
+    <string name="advanced_show">고급 식별자 표시</string>
+    <string name="advanced_hide">고급 식별자 숨기기</string>
+    <string name="settings_generate_all">일괄 생성</string>
+    <string name="safe_mode_back">뒤로</string>
+    <string name="real_info_button_helper">앱 정보에서 현재 런타임 값과 저장된 위조 대상을 비교합니다.</string>
+    <string name="safe_mode_explanation">Safe Mode는 선택한 앱에서 실제 Build.VERSION 및 ro.*.build.version.* 값을 유지하여 기기에 없는 API 호출로 인한 충돌을 방지합니다. 모델, 핑거프린트, 통신 및 식별자 후킹은 계속 적용되며, Android 시스템 프레임워크는 항상 후킹에서 제외됩니다.</string>
+    <string name="safe_mode_apps_title">설치된 앱</string>
+    <string name="safe_mode_selected_count">%1$d개 선택됨</string>
+    <string name="safe_mode_dont_show_again">다시 보지 않기</string>
+    <string name="safe_mode_more_options">더보기</string>
 </resources>

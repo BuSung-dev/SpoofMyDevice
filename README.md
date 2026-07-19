@@ -1,76 +1,65 @@
 # SpoofMyDevice
 
-SpoofMyDevice is an LSPosed companion app for building, saving, and applying spoofed Android device profiles.
+SpoofMyDevice 2.0 is an Xposed module and companion app for building, saving, and applying spoofed Android device profiles to selected apps.
 
-Instead of manually editing property files, you can pick a preset, switch to a custom profile, save it, and let the module apply those values to scoped apps at runtime.
-
-## Preview
-
-<div>
-<img src="img/KakaoTalk_20260323_151856000.jpg" alt="SpoofMyDevice preview 1" width="220"/>
-<img src="img/KakaoTalk_20260323_152603549.jpg" alt="SpoofMyDevice preview 2" width="220"/>
-<img src="img/KakaoTalk_20260323_151856000_01.jpg" alt="SpoofMyDevice preview 3" width="220"/>
-</div>
+The companion UI is written entirely in Jetpack Compose and uses Material 3 Expressive components, a Tonal Spot palette, and the 2025 Material color specification.
 
 ## Features
 
-- Home dashboard with module status, active spoof profile, and config file details
-- Built-in device presets for Pixel, Galaxy, Xiaomi, tablet profiles, and more
-- Custom mode that starts from a preset and keeps every value editable
-- Runtime settings for theme, language, system colors, and optional display spoofing
-- App Info page with version details, credits, and project link
-- Config-based workflow that keeps the hook layer and UI in sync
+- Reusable preset-based and fully editable custom profiles
+- Independent app-to-profile assignments
+- Dedicated profile management and per-app profile assignment screens
+- Live profile propagation to already hooked scoped apps
+- Per-field enable controls and one-tap randomization for advanced identifiers
+- Safe Mode that keeps the real `Build.VERSION` and `ro.*.build.version.*` values for selected apps
+- Model, fingerprint, telephony, and identifier hooks remain enabled in Safe Mode
+- Android System Framework is always excluded from hooking
+- Optional resolution, density, window metrics, and configuration spoofing
+- Locale, timezone, Build ID, and Display ID spoofing
+- English, Korean, Japanese, and Simplified Chinese UI
+- Runtime diagnostics and app information screens
+- Rooted LSPosed and non-root patch-manager workflows
 
 ## Requirements
 
-- Android 8.0 or higher
-- Rooted device with LSPosed installed
-- Target apps added to LSPosed scope
+- Android 8.0 or newer
+- One of the following module runtimes:
+  - LSPosed on a rooted device
+  - A non-root patch manager that implements the legacy Xposed API, such as LSPatch or NPatch
 
-## What It Can Spoof
+## Rooted LSPosed Setup
 
-SpoofMyDevice is built to control the values that apps commonly inspect when identifying a device:
+1. Install the SpoofMyDevice APK and open it once.
+2. Enable SpoofMyDevice in LSPosed.
+3. Add only the target apps to the module scope. Do not select Android System Framework.
+4. Open **Profiles**, create a profile, then select a preset or edit its custom values and save it.
+5. Open **Apps**, select a target app, then choose one of the saved profiles in its assignment screen.
+6. Force stop and relaunch newly assigned target apps.
 
-- `Build.*` fields such as brand, manufacturer, model, device, board, fingerprint, release, and SDK
-- System properties used by apps that read values outside normal Android APIs
-- Telephony and carrier-related values
-- Optional display metrics like resolution and density
+## Non-root Setup
 
-The companion app saves the selected profile, and the LSPosed module applies those values when scoped apps are launched.
+1. Install the SpoofMyDevice APK normally and open it once.
+2. In LSPatch or NPatch, register SpoofMyDevice as the Xposed module for the target APK.
+3. Patch the target APK and install the patched result.
+4. Create and save a profile in **Profiles**, then open **Apps**, select the patched app, and assign that profile.
+5. Relaunch the patched target app.
 
-## Presets And Custom Profiles
+Patched APK signatures differ from the original signatures. Apps that enforce signature, installer, or integrity checks may reject a patched build, and an official app update replaces the patched APK.
 
-The app supports two profile workflows:
+## Safe Mode
 
-1. `Preset`
-   Use a ready-made device profile from the built-in catalog.
+Safe Mode exists to prevent crashes when the spoofed profile reports a newer Android version than the physical device. For selected apps it bypasses only:
 
-2. `Custom`
-   Start from a preset, keep its values, and edit whatever you need.
+- `Build.VERSION` fields
+- `ro.*.build.version.*` properties
 
-This makes it easy to use a known-good base profile and only tweak the parts that matter for your target app.
+Model, fingerprint, network, telephony, and identifier spoofing still applies. Android System Framework is never hooked, regardless of Safe Mode selection.
 
-## How To Use
+## Configuration
 
-1. Install the app on your device
-2. Open it once so the initial config file can be created
-3. Enable the module in LSPosed
-4. Add the apps you want to spoof to LSPosed scope
-5. Pick a preset or switch to a custom profile
-6. Tap `Save`
-7. Force stop and relaunch the target apps
+The companion app stores reusable profiles, app assignments, and global runtime options together in one app-private `app_profiles.json` file. The exported config provider returns only the profile assigned to the requesting package. Packages without an assignment are not hooked.
 
-## App Settings
-
-The companion app also includes a few quality-of-life settings:
-
-- English, Korean, or Japanese UI
-
-## Config File
-
-Profiles are stored as a simple `key=value` config file so the UI and hook layer can share the same source of truth.
-
-The module reads that saved config and reapplies it to scoped apps when they start.
+Applying a profile broadcasts a config-change event so already hooked processes can reload it. A newly assigned app must be relaunched because Xposed hooks are installed when its process starts. Some apps also cache identifiers internally and require a force stop after profile changes.
 
 ## Build From Source
 
@@ -80,17 +69,12 @@ cd SpoofMyDevice
 ./gradlew assembleDebug
 ```
 
-The debug APK will be generated at:
+The debug APK is generated at:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Notes
-
-- The current install package name is `com.spoofmydevice`
-- Some apps cache device information aggressively, so a force stop may be required after saving
-
 ## Disclaimer
 
-This project is intended for research, testing, and authorized use only. Make sure your use complies with local laws, platform rules, and the policies of the apps you test.
+This project is intended for research, testing, and authorized use. Follow applicable laws, platform rules, and the policies of the apps being tested.

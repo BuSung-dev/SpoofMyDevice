@@ -42,7 +42,7 @@ public class RandomGenerator {
         String mnc = "260";
 
         StringBuilder msin = new StringBuilder();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 9; i++) {
             msin.append(random.nextInt(10));
         }
 
@@ -69,7 +69,7 @@ public class RandomGenerator {
         int exchange = 200 + random.nextInt(800);
         int subscriber = random.nextInt(10000);
 
-        return String.format("+1%03d%03d%04d", areaCode, exchange, subscriber);
+        return String.format(Locale.US, "+1%03d%03d%04d", areaCode, exchange, subscriber);
     }
 
     public static String generateSerial() {
@@ -117,6 +117,7 @@ public class RandomGenerator {
         String buildId = generateBuildId();
         String incremental = generateIncremental();
         return String.format(
+            Locale.US,
             "google/cheetah/cheetah:15/%s/%s:user/release-keys",
             buildId,
             incremental
@@ -132,7 +133,7 @@ public class RandomGenerator {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyMMdd", Locale.US);
         String date = dateFormat.format(new Date());
         int build = random.nextInt(999) + 1;
-        return String.format("%s.%s.%03d", prefix, date, build);
+        return String.format(Locale.US, "%s.%s.%03d", prefix, date, build);
     }
 
     /**
@@ -140,7 +141,7 @@ public class RandomGenerator {
      * 8-digit number
      */
     public static String generateIncremental() {
-        return String.format("%08d", random.nextInt(100000000));
+        return String.format(Locale.US, "%08d", random.nextInt(100000000));
     }
 
     /**

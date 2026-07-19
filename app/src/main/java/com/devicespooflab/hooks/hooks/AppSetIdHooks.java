@@ -1,7 +1,5 @@
 package com.devicespooflab.hooks.hooks;
 
-import android.os.Build;
-
 import com.devicespooflab.hooks.utils.ConfigManager;
 
 import de.robv.android.xposed.XC_MethodHook;
@@ -18,14 +16,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public class AppSetIdHooks {
 
     private static final String TAG = "DeviceSpoofLab-AppSetId";
-    private static final int MIN_SDK = 30; // Android 11
-
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
-        // Only hook on Android 11+ (SDK 30+)
-        if (Build.VERSION.SDK_INT < MIN_SDK) {
-            return;
-        }
-
         try {
             hookAppSetIdInfo(lpparam);
         } catch (Exception e) {

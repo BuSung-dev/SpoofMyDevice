@@ -1,17 +1,18 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.devicespooflab.hooks"
-    compileSdk = 34
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.spoofmydevice"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 7
-        versionName = "1.4"
+        targetSdk = 37
+        versionCode = 9
+        versionName = "2.0"
     }
 
     buildTypes {
@@ -25,12 +26,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
-        viewBinding = true
+        compose = true
     }
 
     packaging {
@@ -41,9 +42,24 @@ android {
 }
 
 dependencies {
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("androidx.fragment:fragment:1.7.1")
-    implementation("com.google.android.material:material:1.12.0")
+    val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
+
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3:1.5.0-alpha24")
+    implementation("androidx.compose.material3:material3-window-size-class")
+    implementation("com.materialkolor:material-kolor:4.1.1")
+    implementation("com.google.android.material:material:1.14.0")
+
+    debugImplementation("androidx.compose.ui:ui-tooling")
     compileOnly("de.robv.android.xposed:api:82")
+
+    testImplementation("junit:junit:4.13.2")
 }

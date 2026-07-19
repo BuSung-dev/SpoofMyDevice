@@ -23,31 +23,34 @@ public final class VendorSystemPropertiesHooks {
 
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
         for (String className : CANDIDATE_CLASSES) {
-            hookClass(className, lpparam.classLoader);
-            hookClass(className, null);
+            hookClass(className, lpparam.classLoader, lpparam.packageName);
+            hookClass(className, null, lpparam.packageName);
         }
     }
 
-    private static void hookClass(String className, ClassLoader classLoader) {
+    private static void hookClass(String className, ClassLoader classLoader, String packageName) {
         Class<?> clazz = XposedHelpers.findClassIfExists(className, classLoader);
         if (clazz == null) {
             return;
         }
 
-        hookStringGetter(clazz, "get", String.class);
-        hookStringGetter(clazz, "get", String.class, String.class);
-        hookIntGetter(clazz);
-        hookLongGetter(clazz);
-        hookBooleanGetter(clazz);
+        hookStringGetter(clazz, packageName, "get", String.class);
+        hookStringGetter(clazz, packageName, "get", String.class, String.class);
+        hookIntGetter(clazz, packageName);
+        hookLongGetter(clazz, packageName);
+        hookBooleanGetter(clazz, packageName);
     }
 
-    private static void hookStringGetter(Class<?> clazz, Object... parameterTypes) {
+    private static void hookStringGetter(Class<?> clazz, String packageName, Object... parameterTypes) {
         Object[] args = new Object[parameterTypes.length + 1];
         System.arraycopy(parameterTypes, 0, args, 0, parameterTypes.length);
         args[parameterTypes.length] = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 String key = (String) param.args[0];
+                if (shouldKeepRealVersion(packageName, key)) {
+                    return;
+                }
                 String spoofedValue = ConfigManager.getSystemProperty(key, null);
                 if (spoofedValue != null) {
                     param.setResult(spoofedValue);
@@ -62,7 +65,7 @@ public final class VendorSystemPropertiesHooks {
         }
     }
 
-    private static void hookIntGetter(Class<?> clazz) {
+    private static void hookIntGetter(Class<?> clazz, String packageName) {
         try {
             XposedHelpers.findAndHookMethod(clazz, "getInt",
                 String.class, int.class,
@@ -70,6 +73,9 @@ public final class VendorSystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         String key = (String) param.args[0];
+                        if (shouldKeepRealVersion(packageName, key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
                         if (spoofedValue == null) {
                             return;
@@ -84,7 +90,7 @@ public final class VendorSystemPropertiesHooks {
         }
     }
 
-    private static void hookLongGetter(Class<?> clazz) {
+    private static void hookLongGetter(Class<?> clazz, String packageName) {
         try {
             XposedHelpers.findAndHookMethod(clazz, "getLong",
                 String.class, long.class,
@@ -92,6 +98,9 @@ public final class VendorSystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         String key = (String) param.args[0];
+                        if (shouldKeepRealVersion(packageName, key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
                         if (spoofedValue == null) {
                             return;
@@ -106,7 +115,7 @@ public final class VendorSystemPropertiesHooks {
         }
     }
 
-    private static void hookBooleanGetter(Class<?> clazz) {
+    private static void hookBooleanGetter(Class<?> clazz, String packageName) {
         try {
             XposedHelpers.findAndHookMethod(clazz, "getBoolean",
                 String.class, boolean.class,
@@ -114,6 +123,9 @@ public final class VendorSystemPropertiesHooks {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         String key = (String) param.args[0];
+                        if (shouldKeepRealVersion(packageName, key)) {
+                            return;
+                        }
                         String spoofedValue = ConfigManager.getSystemProperty(key, null);
                         if (spoofedValue == null) {
                             return;
@@ -123,5 +135,13 @@ public final class VendorSystemPropertiesHooks {
                 });
         } catch (Throwable ignored) {
         }
+    }
+
+    private static boolean shouldKeepRealVersion(String packageName, String key) {
+        return ConfigManager.shouldBypassVersionSpoof(packageName)
+            && key != null
+            && (key.startsWith("ro.build.version.")
+                || key.startsWith("ro.product.build.version.")
+                || key.contains(".build.version."));
     }
 }

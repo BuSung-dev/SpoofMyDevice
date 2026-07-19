@@ -5,34 +5,27 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.nio.charset.StandardCharsets;
+import com.devicespooflab.hooks.data.AppProfileStore;
 
 public class ConfigBridgeReceiver extends BroadcastReceiver {
 
     public static final String ACTION_GET_CONFIG = "com.spoofmydevice.action.GET_CONFIG";
     public static final String EXTRA_CONTENT = "content";
+    public static final String EXTRA_PACKAGE_NAME = "package_name";
 
     @Override
     public void onReceive(Context context, Intent intent) {
         if (context == null || intent == null || !ACTION_GET_CONFIG.equals(intent.getAction())) {
             return;
         }
-        try {
-            File configFile = new File(context.getFilesDir(), ConfigProvider.FILE_NAME);
-            if (!configFile.exists()) {
-                return;
-            }
-            byte[] bytes = new byte[(int) configFile.length()];
-            try (FileInputStream inputStream = new FileInputStream(configFile)) {
-                int read = inputStream.read(bytes);
-                String content = read <= 0 ? "" : new String(bytes, 0, read, StandardCharsets.UTF_8);
-                Bundle extras = getResultExtras(true);
-                extras.putString(EXTRA_CONTENT, content);
-                setResultExtras(extras);
-            }
-        } catch (Throwable ignored) {
+        String content = AppProfileStore.resolveConfig(
+            context,
+            intent.getStringExtra(EXTRA_PACKAGE_NAME)
+        );
+        if (content != null) {
+            Bundle extras = getResultExtras(true);
+            extras.putString(EXTRA_CONTENT, content);
+            setResultExtras(extras);
         }
     }
 }

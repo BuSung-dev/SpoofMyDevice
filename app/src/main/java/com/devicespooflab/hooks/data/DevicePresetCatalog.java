@@ -56,6 +56,10 @@ public class DevicePresetCatalog {
         return withCurrentDevicePreset(context, loadFromCache(context));
     }
 
+    public List<DevicePreset> localizeCurrentDevicePreset(Context context, List<DevicePreset> presets) {
+        return withCurrentDevicePreset(context, presets);
+    }
+
     private List<DevicePreset> loadFromCache(Context context) {
         File cacheFile = getCacheFile(context);
         if (!cacheFile.exists()) {
@@ -123,6 +127,7 @@ public class DevicePresetCatalog {
         profile.setScreenHeight(metrics.heightPixels);
         profile.setScreenDensity(metrics.densityDpi);
         profile.setTimezone(TimeZone.getDefault().getID());
+        profile.setLocale(Locale.getDefault().toLanguageTag());
         profile.setUserAgent(buildDefaultUserAgent(profile));
         profile.setBootloader(Build.BOOTLOADER);
         profile.setCpuAbi(Build.CPU_ABI);
@@ -420,6 +425,7 @@ public class DevicePresetCatalog {
         profile.setSimOperatorNumeric(jsonObject.optString("simOperatorNumeric"));
         profile.setSimCountryIso(jsonObject.optString("simCountryIso"));
         profile.setTimezone(jsonObject.optString("timezone"));
+        profile.setLocale(jsonObject.optString("locale"));
         profile.setUserAgent(jsonObject.optString("userAgent"));
         profile.setSerialNumber(jsonObject.optString("serialNumber"));
         profile.setBootloader(jsonObject.optString("bootloader"));
