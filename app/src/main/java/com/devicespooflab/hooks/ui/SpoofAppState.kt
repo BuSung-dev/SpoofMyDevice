@@ -306,6 +306,15 @@ class SpoofAppState(val activity: AppCompatActivity) {
         installedAppsLoaded = true
     }
 
+    suspend fun refreshInstalledApps() {
+        installedAppsMutex.withLock {
+            cachedInstalledApps = null
+        }
+        installedAppsLoaded = false
+        installedApps = loadInstalledApps()
+        installedAppsLoaded = true
+    }
+
     suspend fun reloadProfileState(profileId: String? = activeProfileId) {
         val storedProfiles = AppProfileSession.current() ?: return
         profileState = storedProfiles

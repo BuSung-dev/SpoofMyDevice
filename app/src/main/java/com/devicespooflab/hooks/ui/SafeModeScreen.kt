@@ -35,12 +35,14 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.devicespooflab.hooks.R
 import com.devicespooflab.hooks.data.AppSettingsStore
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -64,12 +67,14 @@ fun SafeModeScreen(
     val apps = remember { mutableStateListOf<SafeAppEntry>() }
     val selected = remember { mutableStateListOf<String>().apply { addAll(initialSelectedPackages) } }
     var loading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var hideSystemApps by remember { mutableStateOf(true) }
     var showOptions by remember { mutableStateOf(false) }
     var showExplanation by remember {
         mutableStateOf(!AppSettingsStore.isSafeModeExplanationDismissed(appState.activity))
     }
     var doNotShowAgain by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     fun toggle(packageName: String) {
@@ -164,15 +169,34 @@ fun SafeModeScreen(
             !hideSystemApps || !it.systemApp || selected.contains(it.packageName)
         }
 
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    appState.refreshInstalledApps()
+                    val selectedAtEntry = selected.toSet()
+                    apps.clear()
+                    apps.addAll(
+                        appState.installedApps.sortedWith(
+                            compareBy<SafeAppEntry> { !selectedAtEntry.contains(it.packageName) }
+                                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
+                        )
+                    )
+                    isRefreshing = false
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = MdSpacing.sm,
-                vertical = MdSpacing.sm,
-            ),
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = MdSpacing.sm,
+                    vertical = MdSpacing.sm,
+                ),
+            ) {
             item {
                 Row(
                     modifier = Modifier
@@ -256,6 +280,7 @@ fun SafeModeScreen(
                 }
             }
             item { Spacer(Modifier.height(MdSpacing.lg)) }
+            }
         }
     }
 

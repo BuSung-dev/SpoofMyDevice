@@ -52,6 +52,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -140,6 +141,7 @@ private val advancedFields = listOf(
 fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var isRefreshing by remember { mutableStateOf(false) }
     val assignmentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
@@ -160,6 +162,14 @@ fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
     AppSelectionList(
         apps = visibleApps,
         loading = !appState.installedAppsLoaded,
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                appState.refreshInstalledApps()
+                isRefreshing = false
+            }
+        },
         scaffoldPadding = scaffoldPadding,
         profileName = appState::assignedProfileName,
         onSelect = { app ->
@@ -171,10 +181,12 @@ fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 private fun AppSelectionList(
     apps: List<SafeAppEntry>,
     loading: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     scaffoldPadding: PaddingValues,
     profileName: (String) -> String?,
     onSelect: (SafeAppEntry) -> Unit,
@@ -212,75 +224,82 @@ private fun AppSelectionList(
         }
     }
 
-    LazyColumn(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier = Modifier
             .fillMaxSize()
-            .padding(scaffoldPadding)
-            .padding(horizontal = 20.dp),
+            .padding(scaffoldPadding),
     ) {
-        item {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.app_profile_search)) },
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                singleLine = true,
-            )
-            Spacer(Modifier.height(MdSpacing.sm))
-        }
-        itemsIndexed(
-            items = filteredApps,
-            key = { _, app -> app.packageName },
-        ) { index, app ->
-            val assignedProfile = profileName(app.packageName)
-            SegmentedListItem(
-                onClick = { onSelect(app) },
-                shapes = connectedListItemShapes(index, filteredApps.size),
-                modifier = if (index < filteredApps.lastIndex) {
-                    Modifier.padding(bottom = ListItemDefaults.SegmentedGap)
-                } else {
-                    Modifier
-                },
-                leadingContent = {
-                    Image(
-                        bitmap = app.icon.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(MaterialTheme.shapes.medium),
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        text = app.packageName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                trailingContent = {
-                    Text(
-                        text = assignedProfile ?: stringResource(R.string.app_profile_unassigned),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (assignedProfile == null) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                colors = ListItemDefaults.segmentedColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            ) {
-                Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+        ) {
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.app_profile_search)) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(MdSpacing.sm))
             }
+            itemsIndexed(
+                items = filteredApps,
+                key = { _, app -> app.packageName },
+            ) { index, app ->
+                val assignedProfile = profileName(app.packageName)
+                SegmentedListItem(
+                    onClick = { onSelect(app) },
+                    shapes = connectedListItemShapes(index, filteredApps.size),
+                    modifier = if (index < filteredApps.lastIndex) {
+                        Modifier.padding(bottom = ListItemDefaults.SegmentedGap)
+                    } else {
+                        Modifier
+                    },
+                    leadingContent = {
+                        Image(
+                            bitmap = app.icon.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(MaterialTheme.shapes.medium),
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = app.packageName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    trailingContent = {
+                        Text(
+                            text = assignedProfile ?: stringResource(R.string.app_profile_unassigned),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (assignedProfile == null) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    colors = ListItemDefaults.segmentedColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                ) {
+                    Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            item { Spacer(Modifier.height(112.dp)) }
         }
-        item { Spacer(Modifier.height(112.dp)) }
     }
 }
 
