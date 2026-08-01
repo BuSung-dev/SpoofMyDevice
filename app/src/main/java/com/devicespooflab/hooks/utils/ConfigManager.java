@@ -43,6 +43,7 @@ public class ConfigManager {
     public static final String KEY_SPOOF_MEDIA_DRM_ID = "device.media_drm_id";
     public static final String KEY_SPOOF_APP_SET_ID = "device.app_set_id";
     public static final String KEY_SAFE_MODE_PACKAGES = "safe_mode.packages";
+    public static final String KEY_DEFAULT_PROFILE_ID = "default_profile_id";
     public static final String KEY_SPOOF_TOGGLE_PREFIX = "spoof.enabled.";
 
     public static final String FIELD_BRAND = "brand";

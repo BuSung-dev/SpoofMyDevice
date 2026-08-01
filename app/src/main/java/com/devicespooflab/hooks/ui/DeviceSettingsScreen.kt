@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AccountBox
 import androidx.compose.material.icons.outlined.Edit
@@ -38,10 +39,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -348,22 +351,61 @@ fun ProfileManagementScreen(
                     Icon(Icons.Outlined.AccountBox, contentDescription = null)
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.app_profile_assignment_count, appState.profileAssignmentCount(profile.id)))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(stringResource(R.string.app_profile_assignment_count, appState.profileAssignmentCount(profile.id)))
+                        if (appState.defaultProfileId() == profile.id) {
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.profile_default_badge),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
                 },
                 trailingContent = {
-                    IconButton(
-                        onClick = { profileIdPendingDeletion = profile.id },
-                        enabled = profiles.size > 1,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = stringResource(R.string.profile_delete),
-                            tint = if (profiles.size > 1) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            },
-                        )
+                    var menuExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = null)
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            val isDefault = appState.defaultProfileId() == profile.id
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        stringResource(
+                                            if (isDefault) R.string.profile_remove_default else R.string.profile_set_default
+                                        )
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    scope.launch {
+                                        appState.setDefaultProfile(if (isDefault) null else profile.id)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profile_delete), color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    menuExpanded = false
+                                    profileIdPendingDeletion = profile.id
+                                },
+                                enabled = profiles.size > 1,
+                            )
+                        }
                     }
                 },
                 colors = ListItemDefaults.segmentedColors(
