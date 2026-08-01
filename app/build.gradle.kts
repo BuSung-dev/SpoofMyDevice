@@ -59,7 +59,8 @@ dependencies {
     implementation("com.google.android.material:material:1.14.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
-    compileOnly("de.robv.android.xposed:api:82")
+    // compileOnly("de.robv.android.xposed:api:82") Failed to resolve
+    compileOnly(files("libs/api-82.jar"))
 
     testImplementation("junit:junit:4.13.2")
 }
