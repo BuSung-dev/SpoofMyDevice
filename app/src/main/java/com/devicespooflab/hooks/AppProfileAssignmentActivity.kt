@@ -23,6 +23,7 @@ import com.devicespooflab.hooks.data.AppProfileStore
 import com.devicespooflab.hooks.data.AppProfileSession
 import com.devicespooflab.hooks.data.AppSettingsStore
 import com.devicespooflab.hooks.data.ConfigFileManager
+import com.devicespooflab.hooks.utils.ConfigManager
 import com.devicespooflab.hooks.ui.AppProfileAssignmentScreen
 import com.devicespooflab.hooks.ui.AppProfileAssignmentLoadingScreen
 import com.devicespooflab.hooks.ui.SpoofMyDeviceTheme
@@ -72,6 +73,9 @@ class AppProfileAssignmentActivity : AppCompatActivity() {
                         icon = state.icon,
                         profiles = state.profiles.profiles,
                         assignedProfileId = state.profiles.assignments[state.packageName],
+                        defaultProfileName = state.profiles.globalProperties[ConfigManager.KEY_DEFAULT_PROFILE_ID]?.let { id ->
+                            state.profiles.profiles.find { it.id == id }?.name
+                        },
                         onProfileSelected = { profileId ->
                             scope.launch {
                                 val profiles = saveAssignment(state.packageName, profileId)

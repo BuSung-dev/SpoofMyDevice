@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -158,6 +159,47 @@ fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                             fontSize = (MaterialTheme.typography.bodyLarge.fontSize.value - 1).sp,
                             color = statusSupportingColor,
                         )
+                    }
+                }
+            }
+        }
+        if (appState.defaultProfileId() == null && moduleActivated) {
+            item { Spacer(Modifier.height(MdSpacing.xs)) }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = CardDefaults.cardColors(
+                        containerColor = lerp(MaterialTheme.colorScheme.surfaceContainerHigh, Color(0xFFFF9800), 0.25f)
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = MdSpacing.sm, vertical = MdSpacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = Color(0xFFFF9800),
+                        )
+                        Spacer(Modifier.width(MdSpacing.sm))
+                        Column {
+                            Text(
+                                text = stringResource(R.string.home_no_default_profile_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontSize = (MaterialTheme.typography.titleLarge.fontSize.value - 1).sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(Modifier.height(MdSpacing.xxs))
+                            Text(
+                                text = stringResource(R.string.home_no_default_profile_body),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontSize = (MaterialTheme.typography.bodyLarge.fontSize.value - 1).sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }

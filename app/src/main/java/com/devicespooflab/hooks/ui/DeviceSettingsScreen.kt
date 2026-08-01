@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AccountBox
 import androidx.compose.material.icons.outlined.Edit
@@ -38,10 +39,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -52,6 +55,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -140,6 +144,7 @@ private val advancedFields = listOf(
 fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var isRefreshing by remember { mutableStateOf(false) }
     val assignmentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
@@ -160,6 +165,14 @@ fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
     AppSelectionList(
         apps = visibleApps,
         loading = !appState.installedAppsLoaded,
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                appState.refreshInstalledApps()
+                isRefreshing = false
+            }
+        },
         scaffoldPadding = scaffoldPadding,
         profileName = appState::assignedProfileName,
         onSelect = { app ->
@@ -171,10 +184,12 @@ fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 private fun AppSelectionList(
     apps: List<SafeAppEntry>,
     loading: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     scaffoldPadding: PaddingValues,
     profileName: (String) -> String?,
     onSelect: (SafeAppEntry) -> Unit,
@@ -212,75 +227,82 @@ private fun AppSelectionList(
         }
     }
 
-    LazyColumn(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier = Modifier
             .fillMaxSize()
-            .padding(scaffoldPadding)
-            .padding(horizontal = 20.dp),
+            .padding(scaffoldPadding),
     ) {
-        item {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.app_profile_search)) },
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                singleLine = true,
-            )
-            Spacer(Modifier.height(MdSpacing.sm))
-        }
-        itemsIndexed(
-            items = filteredApps,
-            key = { _, app -> app.packageName },
-        ) { index, app ->
-            val assignedProfile = profileName(app.packageName)
-            SegmentedListItem(
-                onClick = { onSelect(app) },
-                shapes = connectedListItemShapes(index, filteredApps.size),
-                modifier = if (index < filteredApps.lastIndex) {
-                    Modifier.padding(bottom = ListItemDefaults.SegmentedGap)
-                } else {
-                    Modifier
-                },
-                leadingContent = {
-                    Image(
-                        bitmap = app.icon.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(MaterialTheme.shapes.medium),
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        text = app.packageName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                trailingContent = {
-                    Text(
-                        text = assignedProfile ?: stringResource(R.string.app_profile_unassigned),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (assignedProfile == null) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                colors = ListItemDefaults.segmentedColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            ) {
-                Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+        ) {
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.app_profile_search)) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(MdSpacing.sm))
             }
+            itemsIndexed(
+                items = filteredApps,
+                key = { _, app -> app.packageName },
+            ) { index, app ->
+                val assignedProfile = profileName(app.packageName)
+                SegmentedListItem(
+                    onClick = { onSelect(app) },
+                    shapes = connectedListItemShapes(index, filteredApps.size),
+                    modifier = if (index < filteredApps.lastIndex) {
+                        Modifier.padding(bottom = ListItemDefaults.SegmentedGap)
+                    } else {
+                        Modifier
+                    },
+                    leadingContent = {
+                        Image(
+                            bitmap = app.icon.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(MaterialTheme.shapes.medium),
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = app.packageName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    trailingContent = {
+                        Text(
+                            text = assignedProfile ?: stringResource(R.string.app_profile_unassigned),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (assignedProfile == null) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    colors = ListItemDefaults.segmentedColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                ) {
+                    Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            item { Spacer(Modifier.height(112.dp)) }
         }
-        item { Spacer(Modifier.height(112.dp)) }
     }
 }
 
@@ -329,22 +351,61 @@ fun ProfileManagementScreen(
                     Icon(Icons.Outlined.AccountBox, contentDescription = null)
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.app_profile_assignment_count, appState.profileAssignmentCount(profile.id)))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(stringResource(R.string.app_profile_assignment_count, appState.profileAssignmentCount(profile.id)))
+                        if (appState.defaultProfileId() == profile.id) {
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.profile_default_badge),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
                 },
                 trailingContent = {
-                    IconButton(
-                        onClick = { profileIdPendingDeletion = profile.id },
-                        enabled = profiles.size > 1,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = stringResource(R.string.profile_delete),
-                            tint = if (profiles.size > 1) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            },
-                        )
+                    var menuExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = null)
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            val isDefault = appState.defaultProfileId() == profile.id
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        stringResource(
+                                            if (isDefault) R.string.profile_remove_default else R.string.profile_set_default
+                                        )
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    scope.launch {
+                                        appState.setDefaultProfile(if (isDefault) null else profile.id)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profile_delete), color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    menuExpanded = false
+                                    profileIdPendingDeletion = profile.id
+                                },
+                                enabled = profiles.size > 1,
+                            )
+                        }
                     }
                 },
                 colors = ListItemDefaults.segmentedColors(

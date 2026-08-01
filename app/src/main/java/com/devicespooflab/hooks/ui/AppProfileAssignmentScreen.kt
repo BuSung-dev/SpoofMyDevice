@@ -78,6 +78,7 @@ fun AppProfileAssignmentScreen(
     icon: Bitmap,
     profiles: List<AppProfileStore.Profile>,
     assignedProfileId: String?,
+    defaultProfileName: String?,
     onProfileSelected: (String?) -> Unit,
     onCreateProfile: () -> Unit,
     onBack: () -> Unit,
@@ -119,7 +120,11 @@ fun AppProfileAssignmentScreen(
                         Icon(Icons.Outlined.Block, contentDescription = null)
                     },
                     supportingContent = {
-                        Text(stringResource(R.string.app_profile_none_summary))
+                        if (defaultProfileName != null) {
+                            Text(stringResource(R.string.app_profile_none_summary_with_default, defaultProfileName))
+                        } else {
+                            Text(stringResource(R.string.app_profile_none_summary))
+                        }
                     },
                     trailingContent = {
                         RadioButton(

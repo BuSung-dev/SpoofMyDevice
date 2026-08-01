@@ -258,6 +258,44 @@ class SpoofAppState(val activity: AppCompatActivity) {
         return profileState?.assignments?.values?.count { it == profileId } ?: 0
     }
 
+    fun defaultProfileId(): String? {
+        return profileState?.globalProperties?.get(ConfigManager.KEY_DEFAULT_PROFILE_ID)
+    }
+
+    suspend fun setDefaultProfile(profileId: String?) {
+        val storedProfiles = profileState ?: return
+        loading = true
+        try {
+            val updatedState = withContext(Dispatchers.IO) {
+                val globalProperties = LinkedHashMap(storedProfiles.globalProperties)
+                if (profileId == null) {
+                    globalProperties.remove(ConfigManager.KEY_DEFAULT_PROFILE_ID)
+                } else {
+                    globalProperties[ConfigManager.KEY_DEFAULT_PROFILE_ID] = profileId
+                }
+                val state = AppProfileStore.State(
+                    storedProfiles.profiles,
+                    storedProfiles.assignments,
+                    globalProperties,
+                )
+                appProfileStore.save(activity, state)
+                AppProfileSession.update(state)
+                state
+            }
+            profileState = updatedState
+            val profileName = profileId?.let { storedProfiles.findProfile(it)?.name.orEmpty() }
+            message = if (profileId != null && profileName != null) {
+                localizedContext().getString(R.string.profile_default_set_message, profileName)
+            } else {
+                localizedContext().getString(R.string.profile_default_removed_message)
+            }
+        } catch (exception: Exception) {
+            message = localizedContext().getString(R.string.save_failed) + " " + exception.message
+        } finally {
+            loading = false
+        }
+    }
+
     suspend fun deleteProfile(profileId: String): Boolean {
         val storedProfiles = profileState ?: return false
         if (storedProfiles.profiles.size <= 1) {
@@ -271,10 +309,14 @@ class SpoofAppState(val activity: AppCompatActivity) {
                 val assignments = LinkedHashMap(storedProfiles.assignments).apply {
                     entries.removeAll { it.value == profileId }
                 }
+                val globalProperties = LinkedHashMap(storedProfiles.globalProperties)
+                if (globalProperties[ConfigManager.KEY_DEFAULT_PROFILE_ID] == profileId) {
+                    globalProperties.remove(ConfigManager.KEY_DEFAULT_PROFILE_ID)
+                }
                 val state = AppProfileStore.State(
                     profiles,
                     assignments,
-                    storedProfiles.globalProperties,
+                    globalProperties,
                 )
                 appProfileStore.save(activity, state)
                 AppProfileSession.update(state)
@@ -302,6 +344,15 @@ class SpoofAppState(val activity: AppCompatActivity) {
         if (installedAppsLoaded) {
             return
         }
+        installedApps = loadInstalledApps()
+        installedAppsLoaded = true
+    }
+
+    suspend fun refreshInstalledApps() {
+        installedAppsMutex.withLock {
+            cachedInstalledApps = null
+        }
+        installedAppsLoaded = false
         installedApps = loadInstalledApps()
         installedAppsLoaded = true
     }

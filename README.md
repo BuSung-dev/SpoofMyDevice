@@ -7,6 +7,7 @@ The companion UI is written entirely in Jetpack Compose and uses Material 3 Expr
 ## Features
 
 - Reusable preset-based and fully editable custom profiles
+- Default Profile support for automatic spoofing of all Xposed-scoped apps without per-app assignment
 - Independent app-to-profile assignments
 - Dedicated profile management and per-app profile assignment screens
 - Live profile propagation to already hooked scoped apps
@@ -31,17 +32,18 @@ The companion UI is written entirely in Jetpack Compose and uses Material 3 Expr
 
 1. Install the SpoofMyDevice APK and open it once.
 2. Enable SpoofMyDevice in LSPosed.
-3. Add only the target apps to the module scope. Do not select Android System Framework.
+3. Add target apps to the module scope. Do not select Android System Framework.
 4. Open **Profiles**, create a profile, then select a preset or edit its custom values and save it.
-5. Open **Apps**, select a target app, then choose one of the saved profiles in its assignment screen.
-6. Force stop and relaunch newly assigned target apps.
+5. *(Optional)* Set a profile as **Default** in the Profiles tab. Any app in the Xposed scope without an explicit profile assignment will automatically use the default profile.
+6. Open **Apps** to assign specific profiles to individual apps if needed (overriding the default profile).
+7. Force stop and relaunch newly assigned target apps.
 
 ## Non-root Setup
 
 1. Install the SpoofMyDevice APK normally and open it once.
 2. In LSPatch or NPatch, register SpoofMyDevice as the Xposed module for the target APK.
 3. Patch the target APK and install the patched result.
-4. Create and save a profile in **Profiles**, then open **Apps**, select the patched app, and assign that profile.
+4. Create and save a profile in **Profiles**, set it as Default or assign it directly to the patched app in **Apps**.
 5. Relaunch the patched target app.
 
 Patched APK signatures differ from the original signatures. Apps that enforce signature, installer, or integrity checks may reject a patched build, and an official app update replaces the patched APK.
@@ -53,11 +55,16 @@ Safe Mode exists to prevent crashes when the spoofed profile reports a newer And
 - `Build.VERSION` fields
 - `ro.*.build.version.*` properties
 
-Model, fingerprint, network, telephony, and identifier spoofing still applies. Android System Framework is never hooked, regardless of Safe Mode selection.
+Model, fingerprint, network, telephony, and identifier spoofing still applies. Android System Framework is never hooked, regardless of Safe Mode selection. Safe Mode protection also applies when an app receives spoofing via the Default Profile.
 
-## Configuration
+## Configuration & Profile Resolution
 
-The companion app stores reusable profiles, app assignments, and global runtime options together in one app-private `app_profiles.json` file. The exported config provider returns only the profile assigned to the requesting package. Packages without an assignment are not hooked.
+The companion app stores reusable profiles, app assignments, default profile selection, and global runtime options together in one app-private `app_profiles.json` file.
+
+When a hooked application process requests a configuration:
+1. **Explicit Assignment:** If the package has a specific profile assigned in **Apps**, that profile is applied.
+2. **Default Profile:** If no specific profile is assigned, but a **Default Profile** is configured in **Profiles**, the default profile is applied.
+3. **Unassigned:** If no explicit assignment exists and no Default Profile is set, the package is left unhooked.
 
 Applying a profile broadcasts a config-change event so already hooked processes can reload it. A newly assigned app must be relaunched because Xposed hooks are installed when its process starts. Some apps also cache identifiers internally and require a force stop after profile changes.
 

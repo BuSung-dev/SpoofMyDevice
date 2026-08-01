@@ -1,0 +1,54 @@
+name: Build and Release SpoofMyDevice
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name for the release (e.g., 1.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build:
+    name: Build & Release Debug APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission for Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Build Minified Debug APK
+        run: ./gradlew assembleDebug
+
+      # Locates the debug APK (which is auto-signed with the debug certificate)
+      - name: Locate Debug APK
+        id: locate_apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found APK at: $APK_PATH"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.locate_apk.outputs.apk_path }}
+          name: SpoofMyDevice v${{ github.event.inputs.version_name }}
+          tag_name: v${{ github.event.inputs.version_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

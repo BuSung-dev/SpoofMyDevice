@@ -11,8 +11,8 @@ android {
         applicationId = "com.spoofmydevice"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10
-        versionName = "2.0.1"
+        versionCode = 11
+        versionName = "2.0.2"
     }
 
     buildTypes {
@@ -59,7 +59,8 @@ dependencies {
     implementation("com.google.android.material:material:1.14.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
-    compileOnly("de.robv.android.xposed:api:82")
+    // compileOnly("de.robv.android.xposed:api:82") Failed to resolve
+    compileOnly(files("libs/api-82.jar"))
 
     testImplementation("junit:junit:4.13.2")
 }

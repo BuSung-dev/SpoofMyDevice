@@ -133,7 +133,10 @@ public final class AppProfileStore {
             State state = parse(readFile(new File(context.getFilesDir(), FILE_NAME)));
             String profileId = state.getAssignments().get(packageName);
             if (profileId == null) {
-                return null;
+                profileId = state.getGlobalProperties().get(ConfigManager.KEY_DEFAULT_PROFILE_ID);
+                if (profileId == null) {
+                    return null;
+                }
             }
             Profile profile = state.findProfile(profileId);
             if (profile == null) {

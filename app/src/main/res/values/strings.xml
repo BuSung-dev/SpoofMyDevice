@@ -218,6 +218,15 @@
     <string name="safe_mode_dont_show_again">Don\'t show again</string>
     <string name="safe_mode_more_options">More options</string>
 
+    <string name="home_no_default_profile_title" translatable="false">No default profile</string>
+    <string name="home_no_default_profile_body" translatable="false">Apps in the Xposed scope without an explicit profile assignment will not be spoofed. Set a default profile in the Profiles tab.</string>
+    <string name="profile_set_default" translatable="false">Set as default</string>
+    <string name="profile_remove_default" translatable="false">Remove default</string>
+    <string name="profile_default_badge" translatable="false">Default</string>
+    <string name="profile_default_set_message" translatable="false">Set %1$s as default profile.</string>
+    <string name="profile_default_removed_message" translatable="false">Default profile removed.</string>
+    <string name="app_profile_none_summary_with_default" translatable="false">Will use the default profile (%1$s).</string>
+
     <!-- Empty scope - user selects apps in LSPosed -->
     <string-array name="xposed_scope" />
 </resources>
