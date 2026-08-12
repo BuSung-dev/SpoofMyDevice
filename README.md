@@ -1,96 +1,137 @@
+<div align="center">
+
 # SpoofMyDevice
 
-SpoofMyDevice 2.0 is an Xposed module and companion app for building, saving, and applying spoofed Android device profiles to selected apps.
+### Per-app Android device identity, on your own terms
 
-The companion UI is written entirely in Jetpack Compose and uses Material 3 Expressive components, a Tonal Spot palette, and the 2025 Material color specification.
+Give each app its own device. Build reusable profiles — brand, model, fingerprint,
+telephony, display, locale — and assign a different one to every app on your phone.
+
+[![release](https://img.shields.io/github/v/release/SomawDev/SpoofMyDevice?style=flat-square&color=6750A4&label=release)](https://github.com/SomawDev/SpoofMyDevice/releases/latest)
+[![downloads](https://img.shields.io/github/downloads/SomawDev/SpoofMyDevice/total?style=flat-square&color=6750A4)](https://github.com/SomawDev/SpoofMyDevice/releases)
+[![android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](#requirements)
+[![xposed](https://img.shields.io/badge/LSPosed-module-FF6B6B?style=flat-square)](#rooted-lsposed-setup)
+[![license](https://img.shields.io/github/license/SomawDev/SpoofMyDevice?style=flat-square&color=6750A4)](LICENSE)
+
+[**Download**](https://github.com/SomawDev/SpoofMyDevice/releases/latest) ·
+[Setup](#rooted-lsposed-setup) ·
+[Safe Mode](#safe-mode) ·
+[How it works](#how-it-works) ·
+[Build](#build-from-source)
+
+<br>
+
+<img src="img/screenshot-home.png" width="30%" alt="Home screen showing the active module status and current profile" />
+<img src="img/screenshot-profile-editor.png" width="30%" alt="Profile editor with per-field enable toggles" />
+<img src="img/screenshot-apps.png" width="30%" alt="Per-app profile assignment list" />
+
+</div>
+
+---
+
+## Why
+
+Most spoofing modules apply one identity to the whole device. SpoofMyDevice keeps a
+library of profiles and assigns them **per app**, so one app can see a Pixel 8 Pro while
+another sees the real hardware and a third sees something you made up field by field.
 
 ## Features
 
-- Reusable preset-based and fully editable custom profiles
-- Independent app-to-profile assignments
-- Dedicated profile management and per-app profile assignment screens
-- Live profile propagation to already hooked scoped apps
-- Per-field enable controls and one-tap randomization for advanced identifiers
-- Safe Mode that keeps the real `Build.VERSION` and `ro.*.build.version.*` values for selected apps
-- Model, fingerprint, telephony, and identifier hooks remain enabled in Safe Mode
-- Android System Framework is always excluded from hooking
-- Optional resolution, density, window metrics, and configuration spoofing
-- Locale, timezone, Build ID, and Display ID spoofing
-- English, Korean, Japanese, and Simplified Chinese UI
-- Runtime diagnostics and app information screens
-- Rooted LSPosed and non-root patch-manager workflows
+|  | |
+|---|---|
+| **Profiles** | Reusable presets or fully custom values, saved and reassignable |
+| **Per-app assignment** | Every app gets its own profile; unassigned apps are never hooked |
+| **Live propagation** | Changes reach already-running hooked apps without a reboot |
+| **Per-field control** | Enable individual fields and randomize advanced identifiers in one tap |
+| **Safe Mode** | Keeps the real Android version to prevent version-mismatch crashes |
+| **Broad coverage** | Model, fingerprint, telephony, display, locale, timezone, Build ID |
+| **Localized** | English, Korean, Japanese, Simplified Chinese |
+| **Both workflows** | Rooted LSPosed, or non-root via LSPatch / NPatch |
+
+The Android System Framework is always excluded from hooking, regardless of settings.
 
 ## Requirements
 
-- Android 8.0 or newer
-- One of the following module runtimes:
-  - LSPosed on a rooted device
-  - A non-root patch manager that implements the legacy Xposed API, such as LSPatch or NPatch
+- **Android 8.0** or newer
+- A module runtime, either:
+  - **LSPosed** on a rooted device, or
+  - a non-root patch manager implementing the legacy Xposed API (**LSPatch**, **NPatch**)
 
 ## Rooted LSPosed Setup
 
-1. Install the SpoofMyDevice APK and open it once.
-2. Enable SpoofMyDevice in LSPosed.
-3. Add only the target apps to the module scope. Do not select Android System Framework.
-4. Open **Profiles**, create a profile, then select a preset or edit its custom values and save it.
-5. Open **Apps**, select a target app, then choose one of the saved profiles in its assignment screen.
-6. Force stop and relaunch newly assigned target apps.
+```
+1. Install the APK and open it once
+2. Enable SpoofMyDevice in LSPosed
+3. Add only your target apps to the module scope   ← not Android System Framework
+4. Profiles → create a profile → pick a preset or edit values → save
+5. Apps → pick a target app → assign the profile
+6. Force stop and relaunch the app
+```
+
+The Home screen shows **Module is active** once LSPosed is applying the module.
 
 ## Non-root Setup
 
-1. Install the SpoofMyDevice APK normally and open it once.
-2. In LSPatch or NPatch, register SpoofMyDevice as the Xposed module for the target APK.
-3. Patch the target APK and install the patched result.
-4. Create and save a profile in **Profiles**, then open **Apps**, select the patched app, and assign that profile.
-5. Relaunch the patched target app.
+```
+1. Install the APK normally and open it once
+2. In LSPatch / NPatch, register SpoofMyDevice as the Xposed module for the target APK
+3. Patch the target APK and install the result
+4. Profiles → create and save a profile
+5. Apps → select the patched app → assign the profile
+6. Relaunch the patched app
+```
 
-Patched APK signatures differ from the original signatures. Apps that enforce signature, installer, or integrity checks may reject a patched build, and an official app update replaces the patched APK.
+> [!WARNING]
+> Patched APKs are re-signed, so their signature differs from the original. Apps that
+> enforce signature, installer, or integrity checks may reject a patched build, and an
+> official update will replace it.
 
 ## Safe Mode
 
-Safe Mode exists to prevent crashes when the spoofed profile reports a newer Android version than the physical device. For selected apps it bypasses only:
+Safe Mode prevents crashes when a profile reports a **newer Android version than the
+physical device**. For the apps you select, it passes through only:
 
 - `Build.VERSION` fields
 - `ro.*.build.version.*` properties
 
-Model, fingerprint, network, telephony, and identifier spoofing still applies. Android System Framework is never hooked, regardless of Safe Mode selection.
+Everything else — model, fingerprint, network, telephony, identifiers — still spoofs
+normally.
 
-## Configuration
+## How It Works
 
-The companion app stores reusable profiles, app assignments, and global runtime options together in one app-private `app_profiles.json` file. The exported config provider returns only the profile assigned to the requesting package. Packages without an assignment are not hooked.
+Profiles, assignments, and global options live in a single app-private
+`app_profiles.json`. An exported config provider returns **only** the profile assigned to
+the requesting package, so an app can never read another app's configuration, and
+packages without an assignment are not hooked at all.
 
-Applying a profile broadcasts a config-change event so already hooked processes can reload it. A newly assigned app must be relaunched because Xposed hooks are installed when its process starts. Some apps also cache identifiers internally and require a force stop after profile changes.
+Saving a profile broadcasts a config-change event, letting already-hooked processes
+reload in place. A newly assigned app still needs a relaunch, because Xposed installs
+hooks when a process starts. Some apps also cache identifiers internally and need a force
+stop.
 
 ## Build From Source
 
 ```bash
-git clone https://github.com/BuSung-dev/SpoofMyDevice.git
+git clone https://github.com/SomawDev/SpoofMyDevice.git
 cd SpoofMyDevice
-./gradlew assembleDebug
-```
-
-The debug APK is generated at:
-
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-Use the debug build for development only. It is `debuggable`, which lets any process
-attach a debugger and read the app's private profile data, and it runs unoptimized, so it
-is a poor guide to how the app actually performs. Distribute the release build instead.
-
-### Release Builds
-
-```bash
 ./gradlew assembleRelease
 ```
 
-```text
-app/build/outputs/apk/release/app-release.apk
-```
+| Variant | Command | Use for |
+|---|---|---|
+| `release` | `./gradlew assembleRelease` | Distribution — minified, shrunk, signed |
+| `benchmark` | `./gradlew installBenchmark` | Measuring performance (release build, debug-signed) |
+| `debug` | `./gradlew assembleDebug` | Development only |
 
-Release signing is read from a `keystore.properties` in the repository root, which is
-gitignored and must never be committed:
+> [!CAUTION]
+> Don't distribute the debug build. It is `debuggable`, so any process can attach a
+> debugger and read your private profile data, and it runs unoptimized — a poor guide to
+> real performance. Judge smoothness with `benchmark`, never `debug`.
+
+### Signing
+
+Release signing reads `keystore.properties` from the repository root. It is gitignored
+and must never be committed:
 
 ```properties
 storeFile=C:/path/to/spoofmydevice-release.jks
@@ -99,24 +140,26 @@ keyAlias=spoofmydevice
 keyPassword=...
 ```
 
-CI can supply the same values as `ANDROID_KEYSTORE_FILE`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` instead. With neither configured the
-release build still assembles, just unsigned.
+CI can supply `ANDROID_KEYSTORE_FILE`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+and `ANDROID_KEY_PASSWORD` instead. With neither configured the release build still
+assembles, just unsigned.
 
-Back up the keystore and its password somewhere durable. Android identifies an app by its
-signing certificate, so losing either means no future version can ever be installed as an
-update over an existing one.
+> [!IMPORTANT]
+> Back up the keystore **and** its password somewhere durable. Android identifies an app
+> by its signing certificate — lose either and no future version can ever install as an
+> update over an existing one.
 
-### Measuring Performance
+## Tech
 
-```bash
-./gradlew installBenchmark
-```
-
-The `benchmark` variant is the release build (R8, not debuggable) signed with the debug
-key so it can be installed directly. Use it for any judgement about smoothness; debug
-builds are not representative.
+Jetpack Compose throughout, Material 3 Expressive components, Tonal Spot palette, and the
+2025 Material color specification. Release builds are R8-minified with baseline profiles
+applied at install.
 
 ## Disclaimer
 
-This project is intended for research, testing, and authorized use. Follow applicable laws, platform rules, and the policies of the apps being tested.
+Intended for research, testing, and authorized use. Follow applicable laws, platform
+rules, and the policies of the apps being tested.
+
+## License
+
+[MIT](LICENSE)
