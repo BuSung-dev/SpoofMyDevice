@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrightnessAuto
@@ -38,9 +39,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -59,12 +63,15 @@ private data class SettingOption(val id: String, val labelRes: Int)
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
+fun AppSettingsScreen(
+    appState: SpoofAppState,
+    scaffoldPadding: PaddingValues,
+    listState: LazyListState = rememberLazyListState(),
+) {
     val context = appState.activity
     val scope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
-    var optionDialog = rememberMutableString()
-    var presetSourceDialog = rememberMutableBoolean()
+    var optionDialog by rememberSaveable { mutableStateOf<String?>(null) }
+    var presetSourceDialog by rememberSaveable { mutableStateOf(false) }
     val safeModeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode != android.app.Activity.RESULT_OK) {
             return@rememberLauncherForActivityResult
@@ -76,32 +83,42 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
         scope.launch { appState.updateSafeModePackages(packages) }
     }
 
-    val themeOptions = listOf(
-        SettingOption(AppSettingsStore.THEME_SYSTEM, R.string.theme_system),
-        SettingOption(AppSettingsStore.THEME_LIGHT, R.string.theme_light),
-        SettingOption(AppSettingsStore.THEME_DARK, R.string.theme_dark),
-    )
-    val themeIcons = listOf(
-        Icons.Filled.BrightnessAuto,
-        Icons.Filled.LightMode,
-        Icons.Filled.DarkMode,
-    )
-    val languageOptions = listOf(
-        SettingOption(AppSettingsStore.LANGUAGE_DEFAULT, R.string.language_default),
-        SettingOption(AppSettingsStore.LANGUAGE_ENGLISH, R.string.language_english),
-        SettingOption(AppSettingsStore.LANGUAGE_KOREAN, R.string.language_korean),
-        SettingOption(AppSettingsStore.LANGUAGE_JAPANESE, R.string.language_japanese),
-        SettingOption(AppSettingsStore.LANGUAGE_CHINESE_SIMPLIFIED, R.string.language_chinese),
-    )
-    val colorOptions = listOf(
-        SettingOption(AppSettingsStore.COLOR_STYLE_MINT, R.string.color_style_mint),
-        SettingOption(AppSettingsStore.COLOR_STYLE_BLUE, R.string.color_style_blue),
-        SettingOption(AppSettingsStore.COLOR_STYLE_ROSE, R.string.color_style_rose),
-        SettingOption(AppSettingsStore.COLOR_STYLE_AMBER, R.string.color_style_amber),
-    )
+    // These option tables are constant; rebuilding them on every recomposition would
+    // allocate fresh objects inside a scrolling list and defeat Compose's skipping.
+    val themeOptions = remember {
+        listOf(
+            SettingOption(AppSettingsStore.THEME_SYSTEM, R.string.theme_system),
+            SettingOption(AppSettingsStore.THEME_LIGHT, R.string.theme_light),
+            SettingOption(AppSettingsStore.THEME_DARK, R.string.theme_dark),
+        )
+    }
+    val themeIcons = remember {
+        listOf(
+            Icons.Filled.BrightnessAuto,
+            Icons.Filled.LightMode,
+            Icons.Filled.DarkMode,
+        )
+    }
+    val languageOptions = remember {
+        listOf(
+            SettingOption(AppSettingsStore.LANGUAGE_DEFAULT, R.string.language_default),
+            SettingOption(AppSettingsStore.LANGUAGE_ENGLISH, R.string.language_english),
+            SettingOption(AppSettingsStore.LANGUAGE_KOREAN, R.string.language_korean),
+            SettingOption(AppSettingsStore.LANGUAGE_JAPANESE, R.string.language_japanese),
+            SettingOption(AppSettingsStore.LANGUAGE_CHINESE_SIMPLIFIED, R.string.language_chinese),
+        )
+    }
+    val colorOptions = remember {
+        listOf(
+            SettingOption(AppSettingsStore.COLOR_STYLE_MINT, R.string.color_style_mint),
+            SettingOption(AppSettingsStore.COLOR_STYLE_BLUE, R.string.color_style_blue),
+            SettingOption(AppSettingsStore.COLOR_STYLE_ROSE, R.string.color_style_rose),
+            SettingOption(AppSettingsStore.COLOR_STYLE_AMBER, R.string.color_style_amber),
+        )
+    }
     val systemColors = appState.systemColorsEnabled
     val appearanceCount = if (systemColors) 2 else 3
-    LaunchedEffect(Unit) { listState.scrollToItem(0) }
+    val safeModePackages = appState.safeModePackages()
 
     LazyColumn(
         state = listState,
@@ -110,8 +127,8 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
             .padding(scaffoldPadding)
             .padding(horizontal = 20.dp),
     ) {
-        item { SectionTitle(stringResource(R.string.settings_appearance_title)) }
-        item {
+        item(key = "appearance_title") { SectionTitle(stringResource(R.string.settings_appearance_title)) }
+        item(key = "theme_toggle") {
             val selectedTheme = appState.themeMode
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -144,7 +161,7 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
             }
             Spacer(Modifier.height(12.dp))
         }
-        item {
+        item(key = "system_colors") {
             ConnectedSettingsRow(
                 index = 0,
                 count = appearanceCount,
@@ -158,7 +175,7 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
             )
         }
         if (!systemColors) {
-            item {
+            item(key = "color_style") {
                 ConnectedSettingsRow(
                     index = 1,
                     count = appearanceCount,
@@ -166,11 +183,11 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                     summary = stringResource(R.string.settings_color_style_summary, optionLabel(colorOptions, appState.colorStyle)),
                     icon = Icons.Outlined.Palette,
                     trailingText = optionLabel(colorOptions, appState.colorStyle),
-                    onClick = { optionDialog.value = "color" },
+                    onClick = { optionDialog = "color" },
                 )
             }
         }
-        item {
+        item(key = "language") {
             ConnectedSettingsRow(
                 index = appearanceCount - 1,
                 count = appearanceCount,
@@ -178,12 +195,12 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                 summary = stringResource(R.string.settings_language_helper),
                 icon = Icons.Outlined.Translate,
                 trailingText = optionLabel(languageOptions, appState.languageMode),
-                onClick = { optionDialog.value = "language" },
+                onClick = { optionDialog = "language" },
             )
         }
 
-        item { SectionTitle(stringResource(R.string.settings_runtime_title), Modifier.padding(top = 22.dp)) }
-        item {
+        item(key = "runtime_title") { SectionTitle(stringResource(R.string.settings_runtime_title), Modifier.padding(top = 22.dp)) }
+        item(key = "resolution") {
             ConnectedSettingsRow(
                 index = 0,
                 count = 2,
@@ -194,37 +211,37 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                 onCheckedChange = { enabled -> scope.launch { appState.updateScreenMetrics(enabled) } },
             )
         }
-        item {
+        item(key = "safe_mode") {
             ConnectedSettingsRow(
                 index = 1,
                 count = 2,
                 title = stringResource(R.string.settings_safe_mode_title),
-                summary = if (appState.safeModePackages().isEmpty()) {
+                summary = if (safeModePackages.isEmpty()) {
                     stringResource(R.string.settings_safe_mode_summary_disabled)
                 } else {
-                    stringResource(R.string.settings_safe_mode_summary_count, appState.safeModePackages().size)
+                    stringResource(R.string.settings_safe_mode_summary_count, safeModePackages.size)
                 },
                 icon = Icons.Outlined.Security,
                 onClick = {
-                    safeModeLauncher.launch(SafeModeAppsActivity.createIntent(context, appState.safeModePackages()))
+                    safeModeLauncher.launch(SafeModeAppsActivity.createIntent(context, safeModePackages))
                 },
             )
         }
 
-        item { SectionTitle(stringResource(R.string.settings_presets_title), Modifier.padding(top = 22.dp)) }
-        item {
+        item(key = "presets_title") { SectionTitle(stringResource(R.string.settings_presets_title), Modifier.padding(top = 22.dp)) }
+        item(key = "preset_source") {
             ConnectedSettingsRow(
                 index = 0,
                 count = 1,
                 title = stringResource(R.string.settings_preset_source_title),
-                summary = AppSettingsStore.getPresetSourceUrl(context),
+                summary = appState.presetSourceUrl,
                 icon = Icons.Outlined.Link,
-                onClick = { presetSourceDialog.value = true },
+                onClick = { presetSourceDialog = true },
             )
         }
 
-        item { SectionTitle(stringResource(R.string.settings_tools_title), Modifier.padding(top = 22.dp)) }
-        item {
+        item(key = "tools_title") { SectionTitle(stringResource(R.string.settings_tools_title), Modifier.padding(top = 22.dp)) }
+        item(key = "diagnostics") {
             ConnectedSettingsRow(
                 index = 0,
                 count = 2,
@@ -234,7 +251,7 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                 onClick = { context.startActivity(Intent(context, DiagnosticsActivity::class.java)) },
             )
         }
-        item {
+        item(key = "real_info") {
             ConnectedSettingsRow(
                 index = 1,
                 count = 2,
@@ -244,53 +261,43 @@ fun AppSettingsScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                 onClick = { context.startActivity(Intent(context, RealInfoActivity::class.java)) },
             )
         }
-        item { Spacer(Modifier.height(104.dp)) }
+        item(key = "bottom_gap") { Spacer(Modifier.height(104.dp)) }
     }
 
-    when (optionDialog.value) {
+    when (optionDialog) {
         "language" -> OptionDialog(
             title = stringResource(R.string.settings_choose_language),
             options = languageOptions,
             selectedId = appState.languageMode,
             compactSpacing = true,
-            onDismiss = { optionDialog.value = null },
+            onDismiss = { optionDialog = null },
             onSelect = {
                 appState.updateLanguageMode(it)
-                optionDialog.value = null
+                optionDialog = null
             },
         )
         "color" -> OptionDialog(
             title = stringResource(R.string.settings_choose_color_style),
             options = colorOptions,
             selectedId = appState.colorStyle,
-            onDismiss = { optionDialog.value = null },
+            onDismiss = { optionDialog = null },
             onSelect = {
                 appState.updateColorStyle(it)
-                optionDialog.value = null
+                optionDialog = null
             },
         )
     }
 
-    if (presetSourceDialog.value) {
+    if (presetSourceDialog) {
         PresetSourceDialog(
-            currentUrl = AppSettingsStore.getPresetSourceUrl(context),
-            onDismiss = { presetSourceDialog.value = false },
+            currentUrl = appState.presetSourceUrl,
+            onDismiss = { presetSourceDialog = false },
             onSave = {
-                presetSourceDialog.value = false
+                presetSourceDialog = false
                 scope.launch { appState.updatePresetSource(it) }
             },
         )
     }
-}
-
-@Composable
-private fun rememberMutableString() = androidx.compose.runtime.remember {
-    androidx.compose.runtime.mutableStateOf<String?>(null)
-}
-
-@Composable
-private fun rememberMutableBoolean() = androidx.compose.runtime.remember {
-    androidx.compose.runtime.mutableStateOf(false)
 }
 
 @Composable
@@ -334,8 +341,8 @@ private fun OptionDialog(
 @Composable
 private fun PresetSourceDialog(currentUrl: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     val defaultUrl = AppSettingsStore.DEFAULT_PRESET_SOURCE_URL
-    val custom = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(currentUrl != defaultUrl) }
-    val url = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(if (custom.value) currentUrl else "") }
+    var custom by rememberSaveable { mutableStateOf(currentUrl != defaultUrl) }
+    var url by rememberSaveable { mutableStateOf(if (currentUrl != defaultUrl) currentUrl else "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -345,27 +352,27 @@ private fun PresetSourceDialog(currentUrl: String, onDismiss: () -> Unit, onSave
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { custom.value = false }
+                        .clickable { custom = false }
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    RadioButton(selected = !custom.value, onClick = { custom.value = false })
+                    RadioButton(selected = !custom, onClick = { custom = false })
                     Text(stringResource(R.string.settings_preset_source_option_default))
                 }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { custom.value = true }
+                        .clickable { custom = true }
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    RadioButton(selected = custom.value, onClick = { custom.value = true })
+                    RadioButton(selected = custom, onClick = { custom = true })
                     Text(stringResource(R.string.settings_preset_source_option_custom))
                 }
-                if (custom.value) {
+                if (custom) {
                     OutlinedTextField(
-                        value = url.value,
-                        onValueChange = { url.value = it },
+                        value = url,
+                        onValueChange = { url = it },
                         label = { Text(stringResource(R.string.settings_preset_source_input_hint)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -374,8 +381,8 @@ private fun PresetSourceDialog(currentUrl: String, onDismiss: () -> Unit, onSave
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(if (custom.value) url.value.trim() else defaultUrl) },
-                enabled = !custom.value || url.value.isNotBlank(),
+                onClick = { onSave(if (custom) url.trim() else defaultUrl) },
+                enabled = !custom || url.isNotBlank(),
             ) {
                 Text(stringResource(android.R.string.ok))
             }

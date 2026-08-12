@@ -13,6 +13,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -268,21 +269,30 @@ public final class AppProfileStore {
             Map<String, String> assignments,
             Map<String, String> globalProperties
         ) {
-            this.profiles = new ArrayList<>(profiles);
-            this.assignments = new LinkedHashMap<>(assignments);
-            this.globalProperties = new LinkedHashMap<>(globalProperties);
+            // Copied on the way in and wrapped once, so the getters can hand out the
+            // stored view instead of building a fresh copy per call. State is read from
+            // composition — getAssignments() alone runs once per installed app when the
+            // Apps list resolves profile names — and copying a whole map to read a
+            // single key there is pure allocation on the UI thread.
+            this.profiles = Collections.unmodifiableList(new ArrayList<>(profiles));
+            this.assignments = Collections.unmodifiableMap(new LinkedHashMap<>(assignments));
+            this.globalProperties =
+                Collections.unmodifiableMap(new LinkedHashMap<>(globalProperties));
         }
 
+        /** Unmodifiable view; copy it if you need to mutate. */
         public List<Profile> getProfiles() {
-            return new ArrayList<>(profiles);
+            return profiles;
         }
 
+        /** Unmodifiable view; copy it if you need to mutate. */
         public Map<String, String> getAssignments() {
-            return new LinkedHashMap<>(assignments);
+            return assignments;
         }
 
+        /** Unmodifiable view; copy it if you need to mutate. */
         public Map<String, String> getGlobalProperties() {
-            return new LinkedHashMap<>(globalProperties);
+            return globalProperties;
         }
 
         public Profile findProfile(String profileId) {
