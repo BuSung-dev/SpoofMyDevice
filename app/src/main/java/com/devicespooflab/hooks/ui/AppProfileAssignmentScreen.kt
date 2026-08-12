@@ -86,6 +86,7 @@ fun AppProfileAssignmentScreen(
         title = stringResource(R.string.app_profile_assignment_title),
         onBack = onBack,
     ) { contentPadding ->
+        val rowColors = rememberSegmentedListColors()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -127,11 +128,7 @@ fun AppProfileAssignmentScreen(
                             onClick = null,
                         )
                     },
-                    colors = ListItemDefaults.segmentedColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
+                    colors = rowColors,
                 ) {
                     Text(stringResource(R.string.app_profile_none))
                 }
@@ -157,10 +154,7 @@ fun AppProfileAssignmentScreen(
                             onClick = null,
                         )
                     },
-                    colors = ListItemDefaults.segmentedColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
+                    colors = rowColors,
                 ) {
                     Text(profile.name)
                 }

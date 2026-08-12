@@ -1,7 +1,6 @@
 package com.devicespooflab.hooks.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.progressSemantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -38,13 +38,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,24 +59,33 @@ fun SafeModeScreen(
     onSelectionChanged: (Set<String>) -> Unit,
     onBack: () -> Unit,
 ) {
-    val apps = remember { mutableStateListOf<SafeAppEntry>() }
-    val selected = remember { mutableStateListOf<String>().apply { addAll(initialSelectedPackages) } }
+    var apps by remember { mutableStateOf<List<SafeAppEntry>>(emptyList()) }
+    // A Set rather than a list: `contains` is called once per visible row, and toggling
+    // a checkbox should not force a linear scan (or a re-filter) of every app.
+    var selected by remember { mutableStateOf(initialSelectedPackages) }
     var loading by remember { mutableStateOf(true) }
     var hideSystemApps by remember { mutableStateOf(true) }
+    // Which system apps stay visible while "hide system apps" is on: the selection as it
+    // stood when the screen opened or when the filter was last flipped, deliberately not
+    // the live selection. Filtering on the live set would rebuild the visible list on the
+    // UI thread on every checkbox tap, and would yank the row out from under the user's
+    // finger the instant they unticked a system app.
+    var pinnedSystemApps by remember { mutableStateOf(initialSelectedPackages) }
     var showOptions by remember { mutableStateOf(false) }
     var showExplanation by remember {
         mutableStateOf(!AppSettingsStore.isSafeModeExplanationDismissed(appState.activity))
     }
     var doNotShowAgain by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     fun toggle(packageName: String) {
-        if (selected.contains(packageName)) {
-            selected.remove(packageName)
+        selected = if (selected.contains(packageName)) {
+            selected - packageName
         } else {
-            selected.add(packageName)
+            selected + packageName
         }
-        onSelectionChanged(selected.toSet())
+        onSelectionChanged(selected)
     }
 
     fun dismissExplanation() {
@@ -90,11 +97,9 @@ fun SafeModeScreen(
 
     LaunchedEffect(Unit) {
         val selectedAtEntry = initialSelectedPackages
-        apps.addAll(
-            appState.loadInstalledApps().sortedWith(
-                compareBy<SafeAppEntry> { !selectedAtEntry.contains(it.packageName) }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
-            )
+        apps = appState.loadInstalledApps().sortedWith(
+            compareBy<SafeAppEntry> { !selectedAtEntry.contains(it.packageName) }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
         )
         loading = false
     }
@@ -130,6 +135,10 @@ fun SafeModeScreen(
                                     Checkbox(checked = hideSystemApps, onCheckedChange = null)
                                 },
                                 onClick = {
+                                    // Re-anchor the visible set at the moment the filter
+                                    // flips, so system apps picked since the screen
+                                    // opened are kept on screen.
+                                    pinnedSystemApps = selected
                                     hideSystemApps = !hideSystemApps
                                     showOptions = false
                                 },
@@ -160,11 +169,19 @@ fun SafeModeScreen(
             return@Scaffold
         }
 
-        val visibleApps = apps.filter {
-            !hideSystemApps || !it.systemApp || selected.contains(it.packageName)
+        val visibleApps = remember(apps, hideSystemApps, pinnedSystemApps) {
+            if (hideSystemApps) {
+                apps.filter { !it.systemApp || pinnedSystemApps.contains(it.packageName) }
+            } else {
+                apps
+            }
         }
 
+        val rowColors = rememberSegmentedListColors()
+        val rowShapes = rememberSegmentedShapes()
+
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
@@ -173,7 +190,7 @@ fun SafeModeScreen(
                 vertical = MdSpacing.sm,
             ),
         ) {
-            item {
+            item(key = "header") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -195,22 +212,30 @@ fun SafeModeScreen(
                 }
             }
             if (visibleApps.isEmpty()) {
-                item { Text(stringResource(R.string.safe_mode_empty), modifier = Modifier.padding(MdSpacing.sm)) }
+                item(key = "empty") {
+                    Text(stringResource(R.string.safe_mode_empty), modifier = Modifier.padding(MdSpacing.sm))
+                }
             } else {
-                itemsIndexed(visibleApps, key = { _, app -> app.packageName }) { index, app ->
+                itemsIndexed(
+                    items = visibleApps,
+                    key = { _, app -> app.packageName },
+                    // All rows share a content type, so scrolling reuses each row's
+                    // node tree instead of building a fresh one per item.
+                    contentType = { _, _ -> APP_ROW_CONTENT_TYPE },
+                ) { index, app ->
                     val checked = selected.contains(app.packageName)
                     SegmentedListItem(
                         onClick = { toggle(app.packageName) },
-                        shapes = ListItemDefaults.segmentedShapes(index, visibleApps.size),
+                        shapes = rowShapes.forIndex(index, visibleApps.size),
                         modifier = if (index < visibleApps.lastIndex) {
                             Modifier.padding(bottom = ListItemDefaults.SegmentedGap)
                         } else {
                             Modifier
                         },
                         leadingContent = {
-                            Image(
-                                bitmap = app.icon.asImageBitmap(),
-                                contentDescription = null,
+                            AppIcon(
+                                appState = appState,
+                                packageName = app.packageName,
                                 modifier = Modifier.size(44.dp),
                             )
                         },
@@ -238,13 +263,7 @@ fun SafeModeScreen(
                                 onCheckedChange = { toggle(app.packageName) },
                             )
                         },
-                        colors = ListItemDefaults.segmentedColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                            leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            trailingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
+                        colors = rowColors,
                     ) {
                         Text(
                             text = app.label,

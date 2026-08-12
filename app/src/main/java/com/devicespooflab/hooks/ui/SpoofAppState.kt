@@ -16,11 +16,16 @@ import android.provider.Settings
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import com.devicespooflab.hooks.MainActivity
 import com.devicespooflab.hooks.R
@@ -35,12 +40,22 @@ import com.devicespooflab.hooks.utils.ConfigManager
 import com.devicespooflab.hooks.utils.RandomGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.LinkedHashMap
 import java.util.Locale
 import java.util.UUID
 
+/**
+ * Stable by contract rather than by inference: the compiler sees the activity and the
+ * three stores and gives up, but those are set at construction and never reassigned, and
+ * every property that does change is backed by snapshot state, so composition is always
+ * notified. Saying so lets screens taking this as a parameter skip on equality instead of
+ * relying on strong skipping's reference check.
+ */
+@Stable
 class SpoofAppState(val activity: AppCompatActivity) {
 
     private val configFileManager = ConfigFileManager()
@@ -74,6 +89,14 @@ class SpoofAppState(val activity: AppCompatActivity) {
     var systemColorsEnabled by mutableStateOf(AppSettingsStore.isSystemColorEnabled(activity))
         private set
     var colorStyle by mutableStateOf(AppSettingsStore.getColorStyle(activity))
+        private set
+
+    /**
+     * Mirrored as state so the settings list can render it without reaching into
+     * SharedPreferences during composition, which would otherwise run a lookup and a
+     * string trim on every recomposition of that row.
+     */
+    var presetSourceUrl by mutableStateOf(AppSettingsStore.getPresetSourceUrl(activity))
         private set
 
     val editor = ProfileEditorState()
@@ -347,6 +370,7 @@ class SpoofAppState(val activity: AppCompatActivity) {
 
     suspend fun updatePresetSource(sourceUrl: String) {
         AppSettingsStore.setPresetSourceUrl(activity, sourceUrl)
+        presetSourceUrl = AppSettingsStore.getPresetSourceUrl(activity)
         refreshRemotePresets(true)
     }
 
@@ -396,6 +420,11 @@ class SpoofAppState(val activity: AppCompatActivity) {
         profileState = updatedState
     }
 
+    /**
+     * Loads the installed app list *without* decoding icons. Decoding every icon here
+     * used to block the Apps tab for hundreds of milliseconds on devices with many
+     * packages; icons are now fetched per-row on demand via [iconFor] / [loadIcon].
+     */
     suspend fun loadInstalledApps(): List<SafeAppEntry> = installedAppsMutex.withLock {
         cachedInstalledApps?.let { return it }
         return withContext(Dispatchers.IO) {
@@ -417,11 +446,62 @@ class SpoofAppState(val activity: AppCompatActivity) {
                     packageName = packageName,
                     versionName = packageInfo.versionName.orEmpty(),
                     systemApp = applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0,
-                    icon = applicationInfo.loadIcon(packageManager).toBitmap(96, 96),
                 )
             }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
                 .also { cachedInstalledApps = it }
         }
+    }
+
+    /**
+     * Returns the state holder for one package's icon. Each package gets its own
+     * MutableState so that decoding icon N only recomposes the row showing package N.
+     * A single observable map would invalidate every row on every insert, which during
+     * a fling over hundreds of apps means constantly recomposing the whole viewport.
+     */
+    fun iconStateFor(packageName: String): State<ImageBitmap?> = iconStateOf(packageName)
+
+    /** Returns an already-decoded icon, or null if it has not been loaded yet. */
+    fun iconFor(packageName: String): ImageBitmap? = iconStateOf(packageName).value
+
+    /**
+     * Decodes and caches the launcher icon for [packageName]. Safe to call repeatedly:
+     * an already-cached icon is returned without touching the PackageManager.
+     *
+     * Decodes are limited to [ICON_DECODE_CONCURRENCY] at a time. A fast fling can ask
+     * for dozens of icons within a few frames, and letting them all hit the
+     * PackageManager at once starves the dispatcher and stalls the rows that are
+     * actually on screen.
+     */
+    suspend fun loadIcon(packageName: String): ImageBitmap? {
+        val state = iconStateOf(packageName)
+        state.value?.let { return it }
+        val bitmap = iconDecodeLimiter.withPermit {
+            // Re-check: another row may have decoded this while we waited for a permit.
+            state.value ?: withContext(Dispatchers.IO) {
+                runCatching {
+                    val packageManager = activity.packageManager
+                    val applicationInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        packageManager.getApplicationInfo(
+                            packageName,
+                            PackageManager.ApplicationInfoFlags.of(0),
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        packageManager.getApplicationInfo(packageName, 0)
+                    }
+                    // Convert to ImageBitmap here, on the IO thread. Doing it at draw
+                    // time instead would allocate a new wrapper on every recomposition,
+                    // which during a fling means every visible row, every frame.
+                    applicationInfo.loadIcon(packageManager)
+                        .toBitmap(ICON_SIZE_PX, ICON_SIZE_PX)
+                        .asImageBitmap()
+                }.getOrNull()
+            }
+        }
+        if (bitmap != null) {
+            state.value = bitmap
+        }
+        return bitmap
     }
 
     suspend fun populateAdvancedDefaults() {
@@ -558,8 +638,43 @@ class SpoofAppState(val activity: AppCompatActivity) {
     }.getOrNull()
 
     companion object {
+        private const val ICON_SIZE_PX = 96
+        private const val ICON_DECODE_CONCURRENCY = 4
+        private const val MAX_CACHED_ICONS = 200
         private val WIDEVINE_UUID = UUID(-0x121074568629b532L, -0x5c37d8232ae2de13L)
         private val installedAppsMutex = Mutex()
+        private val iconDecodeLimiter = Semaphore(ICON_DECODE_CONCURRENCY)
+
+        /**
+         * Lazily populated launcher icons, keyed by package name. Shared across
+         * activities (like [cachedInstalledApps]) so returning from the assignment or
+         * safe-mode screens does not re-decode icons that are already in memory.
+         *
+         * Each entry is its own [MutableState] rather than the map being a snapshot
+         * state map. That distinction matters: an observable *map* invalidates every
+         * reader whenever any key is inserted, so decoding icons during a fling would
+         * recompose the whole visible list over and over. With per-key state, decoding
+         * package N only recomposes the one row showing package N.
+         *
+         * Access-ordered and size-capped so a device with hundreds of packages does not
+         * retain every 96x96 bitmap.
+         */
+        private val iconCache = java.util.Collections.synchronizedMap(
+            object : LinkedHashMap<String, MutableState<ImageBitmap?>>(
+                MAX_CACHED_ICONS,
+                0.75f,
+                true,
+            ) {
+                override fun removeEldestEntry(
+                    eldest: MutableMap.MutableEntry<String, MutableState<ImageBitmap?>>?,
+                ): Boolean = size > MAX_CACHED_ICONS
+            }
+        )
+
+        private fun iconStateOf(packageName: String): MutableState<ImageBitmap?> =
+            synchronized(iconCache) {
+                iconCache.getOrPut(packageName) { mutableStateOf(null) }
+            }
 
         @Volatile
         private var cachedInstalledApps: List<SafeAppEntry>? = null
@@ -754,12 +869,22 @@ class ProfileEditorState {
     }
 }
 
+@Immutable
 data class SafeAppEntry(
     val label: String,
     val packageName: String,
     val versionName: String,
     val systemApp: Boolean,
-    val icon: Bitmap,
+    /**
+     * Lowercased `label + packageName`, built once on the IO thread when the app list is
+     * loaded. Search then runs a plain substring scan instead of case-folding every
+     * label and package name again on each keystroke. The NUL separator stops a query
+     * from matching across the seam between the two.
+     */
+    val searchKey: String = buildSearchKey(label, packageName),
 )
+
+private fun buildSearchKey(label: String, packageName: String): String =
+    (label + '\u0000' + packageName).lowercase(Locale.ROOT)
 
 private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }

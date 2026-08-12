@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,7 +32,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -43,20 +45,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devicespooflab.hooks.R
 
+@Immutable
 private data class HomeInfo(
     val icon: ImageVector,
     val label: String,
     val value: String,
 )
 
+@Immutable
+private data class StatusColors(
+    val container: Color,
+    val content: Color,
+    val supporting: Color,
+)
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
+fun HomeScreen(
+    appState: SpoofAppState,
+    scaffoldPadding: PaddingValues,
+    listState: LazyListState = rememberLazyListState(),
+) {
     val config = appState.loadedConfig ?: return
     val profile = config.profile
     val moduleActivated = appState.isModuleActivated()
-    val listState = rememberLazyListState()
-    LaunchedEffect(Unit) { listState.scrollToItem(0) }
     val profileInfo = listOf(
         HomeInfo(
             Icons.Outlined.PhoneAndroid,
@@ -97,24 +109,21 @@ fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
             ),
         ),
     )
-    val statusContainerColor = if (moduleActivated) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        lerp(
-            MaterialTheme.colorScheme.surfaceContainerHigh,
-            MaterialTheme.colorScheme.errorContainer,
-            0.30f,
-        )
-    }
-    val statusContentColor = if (moduleActivated) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onErrorContainer
-    }
-    val statusSupportingColor = if (moduleActivated) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.78f)
+    val colorScheme = MaterialTheme.colorScheme
+    val statusColors = remember(moduleActivated, colorScheme) {
+        if (moduleActivated) {
+            StatusColors(
+                container = colorScheme.primaryContainer,
+                content = colorScheme.onPrimaryContainer,
+                supporting = colorScheme.onPrimaryContainer,
+            )
+        } else {
+            StatusColors(
+                container = lerp(colorScheme.surfaceContainerHigh, colorScheme.errorContainer, 0.30f),
+                content = colorScheme.onErrorContainer,
+                supporting = colorScheme.onErrorContainer.copy(alpha = 0.78f),
+            )
+        }
     }
 
     LazyColumn(
@@ -124,11 +133,11 @@ fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
             .padding(scaffoldPadding),
         contentPadding = PaddingValues(horizontal = MdSpacing.sm, vertical = MdSpacing.sm),
     ) {
-        item {
+        item(key = "status") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.extraLarge,
-                colors = CardDefaults.cardColors(containerColor = statusContainerColor),
+                colors = CardDefaults.cardColors(containerColor = statusColors.container),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = MdSpacing.sm, vertical = MdSpacing.md),
@@ -138,7 +147,7 @@ fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                         imageVector = if (moduleActivated) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
                         contentDescription = null,
                         modifier = Modifier.size(40.dp),
-                        tint = if (moduleActivated) statusContentColor else MaterialTheme.colorScheme.error,
+                        tint = if (moduleActivated) statusColors.content else MaterialTheme.colorScheme.error,
                     )
                     Spacer(Modifier.width(MdSpacing.sm))
                     Column {
@@ -147,7 +156,7 @@ fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                             style = MaterialTheme.typography.titleLarge,
                             fontSize = (MaterialTheme.typography.titleLarge.fontSize.value - 1).sp,
                             fontWeight = FontWeight.Medium,
-                            color = statusContentColor,
+                            color = statusColors.content,
                         )
                         if (moduleActivated) {
                             Spacer(Modifier.height(MdSpacing.xxs))
@@ -156,15 +165,15 @@ fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                             text = stringResource(if (moduleActivated) R.string.home_module_active_body else R.string.home_module_inactive_body),
                             style = MaterialTheme.typography.bodyLarge,
                             fontSize = (MaterialTheme.typography.bodyLarge.fontSize.value - 1).sp,
-                            color = statusSupportingColor,
+                            color = statusColors.supporting,
                         )
                     }
                 }
             }
         }
-        item { Spacer(Modifier.height(MdSpacing.xs)) }
-        item { SectionTitle(stringResource(R.string.home_active_profile_title)) }
-        item {
+        item(key = "status_gap") { Spacer(Modifier.height(MdSpacing.xs)) }
+        item(key = "profile_title") { SectionTitle(stringResource(R.string.home_active_profile_title)) }
+        item(key = "profile_card") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.extraLarge,
@@ -199,6 +208,6 @@ fun HomeScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
                 }
             }
         }
-        item { Spacer(Modifier.height(MdSpacing.xl)) }
+        item(key = "bottom_gap") { Spacer(Modifier.height(MdSpacing.xl)) }
     }
 }

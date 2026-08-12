@@ -75,6 +75,48 @@ The debug APK is generated at:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Use the debug build for development only. It is `debuggable`, which lets any process
+attach a debugger and read the app's private profile data, and it runs unoptimized, so it
+is a poor guide to how the app actually performs. Distribute the release build instead.
+
+### Release Builds
+
+```bash
+./gradlew assembleRelease
+```
+
+```text
+app/build/outputs/apk/release/app-release.apk
+```
+
+Release signing is read from a `keystore.properties` in the repository root, which is
+gitignored and must never be committed:
+
+```properties
+storeFile=C:/path/to/spoofmydevice-release.jks
+storePassword=...
+keyAlias=spoofmydevice
+keyPassword=...
+```
+
+CI can supply the same values as `ANDROID_KEYSTORE_FILE`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` instead. With neither configured the
+release build still assembles, just unsigned.
+
+Back up the keystore and its password somewhere durable. Android identifies an app by its
+signing certificate, so losing either means no future version can ever be installed as an
+update over an existing one.
+
+### Measuring Performance
+
+```bash
+./gradlew installBenchmark
+```
+
+The `benchmark` variant is the release build (R8, not debuggable) signed with the debug
+key so it can be installed directly. Use it for any judgement about smoothness; debug
+builds are not representative.
+
 ## Disclaimer
 
 This project is intended for research, testing, and authorized use. Follow applicable laws, platform rules, and the policies of the apps being tested.

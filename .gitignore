@@ -20,3 +20,8 @@ Thumbs.db
 
 # Runtime config
 device_profile.conf
+
+# Signing material - never commit keys or their passwords
+*.jks
+*.keystore
+keystore.properties

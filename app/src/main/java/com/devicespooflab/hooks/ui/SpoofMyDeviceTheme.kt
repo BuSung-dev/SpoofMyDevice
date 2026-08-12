@@ -94,6 +94,13 @@ fun SpoofMyDeviceTheme(
         }
     }
 
+    // MotionScheme.expressive() builds a fresh scheme on every call. It feeds
+    // LocalMotionScheme, which is a *static* CompositionLocal, so a new instance
+    // invalidates the entire UI tree rather than just its readers. This composable
+    // re-runs on every frame of the color animation below, so without remembering it
+    // a theme change would recompose the whole app on every one of those frames.
+    val motionScheme = remember { MotionScheme.expressive() }
+
     CompositionLocalProvider(
         LocalContext provides localizedContext,
         LocalConfiguration provides localizedConfiguration,
@@ -101,9 +108,12 @@ fun SpoofMyDeviceTheme(
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
-            motionScheme = MotionScheme.expressive(),
-            content = content,
-        )
+            motionScheme = motionScheme,
+        ) {
+            // Computed once per theme rather than once per list row; see
+            // rememberSegmentedListColors.
+            ProvideSegmentedListColors(content)
+        }
     }
 }
 

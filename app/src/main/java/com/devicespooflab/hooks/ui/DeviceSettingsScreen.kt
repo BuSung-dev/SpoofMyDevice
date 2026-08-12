@@ -6,7 +6,10 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.progressSemantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -58,6 +62,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -82,12 +87,21 @@ import com.devicespooflab.hooks.ProfileEditorActivity
 import com.devicespooflab.hooks.R
 import com.devicespooflab.hooks.utils.ConfigManager
 import kotlinx.coroutines.launch
+import java.util.Locale
 
+@Immutable
 private data class EditorField(
     val fieldId: String,
     val labelRes: Int,
     val numeric: Boolean = false,
     val multiline: Boolean = false,
+)
+
+/** One installed-app row, with its assigned profile name already resolved. */
+@Immutable
+private data class AppRow(
+    val app: SafeAppEntry,
+    val assignedProfile: String?,
 )
 
 private val identityFields = listOf(
@@ -137,7 +151,11 @@ private val advancedFields = listOf(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
+fun AppProfilesScreen(
+    appState: SpoofAppState,
+    scaffoldPadding: PaddingValues,
+    listState: LazyListState = rememberLazyListState(),
+) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val assignmentLauncher = rememberLauncherForActivityResult(
@@ -158,10 +176,11 @@ fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
         }
     }
     AppSelectionList(
+        appState = appState,
         apps = visibleApps,
         loading = !appState.installedAppsLoaded,
         scaffoldPadding = scaffoldPadding,
-        profileName = appState::assignedProfileName,
+        listState = listState,
         onSelect = { app ->
             assignmentLauncher.launch(
                 AppProfileAssignmentActivity.createIntent(context, app.packageName),
@@ -173,10 +192,11 @@ fun AppProfilesScreen(appState: SpoofAppState, scaffoldPadding: PaddingValues) {
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun AppSelectionList(
+    appState: SpoofAppState,
     apps: List<SafeAppEntry>,
     loading: Boolean,
     scaffoldPadding: PaddingValues,
-    profileName: (String) -> String?,
+    listState: LazyListState,
     onSelect: (SafeAppEntry) -> Unit,
 ) {
     if (loading) {
@@ -200,25 +220,37 @@ private fun AppSelectionList(
     }
 
     var searchQuery by remember { mutableStateOf("") }
-    val filteredApps = remember(apps, searchQuery) {
-        val query = searchQuery.trim()
+    // Resolved once per app list, not once per keystroke: each row carries its assigned
+    // profile name as a plain value. Passing a lookup callback into the rows instead
+    // would hand every row a fresh lambda on each recomposition, making them all
+    // unstable and unskippable during a fling.
+    val rows = remember(apps, appState.profileState) {
+        apps.map { app -> AppRow(app, appState.assignedProfileName(app.packageName)) }
+    }
+    // Matching runs against SafeAppEntry.searchKey, which is lowercased once on the IO
+    // thread when the app list loads, so a keystroke is a plain substring scan instead
+    // of a case-folding pass over every label and package name.
+    val filteredApps = remember(rows, searchQuery) {
+        val query = searchQuery.trim().lowercase(Locale.ROOT)
         if (query.isEmpty()) {
-            apps
+            rows
         } else {
-            apps.filter { app ->
-                app.label.contains(query, ignoreCase = true) ||
-                    app.packageName.contains(query, ignoreCase = true)
-            }
+            rows.filter { it.app.searchKey.contains(query) }
         }
     }
 
+    // Computed once for the whole list rather than per row: see rememberSegmentedListColors.
+    val rowColors = rememberSegmentedListColors()
+    val rowShapes = rememberSegmentedShapes()
+
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(scaffoldPadding)
             .padding(horizontal = 20.dp),
     ) {
-        item {
+        item(key = "search") {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -231,21 +263,29 @@ private fun AppSelectionList(
         }
         itemsIndexed(
             items = filteredApps,
-            key = { _, app -> app.packageName },
-        ) { index, app ->
-            val assignedProfile = profileName(app.packageName)
+            key = { _, row -> row.app.packageName },
+            // All rows share a content type, so scrolling reuses each row's node tree
+            // instead of building a fresh one per item.
+            contentType = { _, _ -> APP_ROW_CONTENT_TYPE },
+        ) { index, row ->
+            val app = row.app
+            val assignedProfile = row.assignedProfile
             SegmentedListItem(
                 onClick = { onSelect(app) },
-                shapes = connectedListItemShapes(index, filteredApps.size),
+                shapes = rowShapes.forIndex(index, filteredApps.size),
+                // Deliberately no animateItem() here: this list can hold several hundred
+                // rows, and per-row placement animation runs on the UI thread for every
+                // visible row on every frame, which wrecks fling smoothness. The list
+                // only changes via search filtering, where the reflow is not worth it.
                 modifier = if (index < filteredApps.lastIndex) {
                     Modifier.padding(bottom = ListItemDefaults.SegmentedGap)
                 } else {
                     Modifier
                 },
                 leadingContent = {
-                    Image(
-                        bitmap = app.icon.asImageBitmap(),
-                        contentDescription = null,
+                    AppIcon(
+                        appState = appState,
+                        packageName = app.packageName,
                         modifier = Modifier
                             .size(40.dp)
                             .clip(MaterialTheme.shapes.medium),
@@ -271,16 +311,12 @@ private fun AppSelectionList(
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
-                colors = ListItemDefaults.segmentedColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
+                colors = rowColors,
             ) {
                 Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        item { Spacer(Modifier.height(112.dp)) }
+        item(key = "bottom_gap") { Spacer(Modifier.height(112.dp)) }
     }
 }
 
@@ -289,6 +325,7 @@ private fun AppSelectionList(
 fun ProfileManagementScreen(
     appState: SpoofAppState,
     scaffoldPadding: PaddingValues,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -304,13 +341,17 @@ fun ProfileManagementScreen(
         scope.launch { appState.reloadProfileState(profileId) }
     }
 
+    val rowColors = rememberSegmentedListColors()
+    val rowShapes = rememberSegmentedShapes()
+
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(scaffoldPadding)
             .padding(horizontal = 20.dp),
     ) {
-        item { SectionTitle(stringResource(R.string.profile_management_list_title)) }
+        item(key = "list_title") { SectionTitle(stringResource(R.string.profile_management_list_title)) }
         itemsIndexed(
             items = profiles,
             key = { _, profile -> profile.id },
@@ -319,11 +360,13 @@ fun ProfileManagementScreen(
                 onClick = {
                     editorLauncher.launch(ProfileEditorActivity.createEditIntent(context, profile.id))
                 },
-                shapes = connectedListItemShapes(index, profiles.size),
+                shapes = rowShapes.forIndex(index, profiles.size),
                 modifier = if (index < profiles.lastIndex) {
-                    Modifier.padding(bottom = ListItemDefaults.SegmentedGap)
-                } else {
                     Modifier
+                        .animateItem()
+                        .padding(bottom = ListItemDefaults.SegmentedGap)
+                } else {
+                    Modifier.animateItem()
                 },
                 leadingContent = {
                     Icon(Icons.Outlined.AccountBox, contentDescription = null)
@@ -347,16 +390,12 @@ fun ProfileManagementScreen(
                         )
                     }
                 },
-                colors = ListItemDefaults.segmentedColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
+                colors = rowColors,
             ) {
                 Text(profile.name)
             }
         }
-        item {
+        item(key = "create_profile") {
             FilledTonalButton(
                 onClick = { editorLauncher.launch(ProfileEditorActivity.createCreateIntent(context)) },
                 modifier = Modifier
@@ -368,7 +407,7 @@ fun ProfileManagementScreen(
                 Text(stringResource(R.string.app_profile_create))
             }
         }
-        item { Spacer(Modifier.height(112.dp)) }
+        item(key = "bottom_gap") { Spacer(Modifier.height(112.dp)) }
     }
 
     val profilePendingDeletion = profiles.firstOrNull { it.id == profileIdPendingDeletion }
@@ -436,8 +475,6 @@ fun ProfileEditorForm(
             permissionLauncher.launch(missing.toTypedArray())
         }
     }
-
-    LaunchedEffect(Unit) { listState.scrollToItem(0) }
 
     LazyColumn(
         state = listState,
@@ -532,7 +569,13 @@ fun ProfileEditorForm(
                 ) {
                     Text(stringResource(if (advancedExpanded) R.string.advanced_hide else R.string.advanced_show))
                 }
-                AnimatedVisibility(advancedExpanded) {
+                AnimatedVisibility(
+                    visible = advancedExpanded,
+                    enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                        fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                        fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
                     Column {
                         Spacer(Modifier.height(14.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
