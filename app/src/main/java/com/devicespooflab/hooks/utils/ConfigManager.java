@@ -65,6 +65,9 @@ public class ConfigManager {
     public static final String FIELD_SCREEN_DENSITY = "screen_density";
     public static final String FIELD_OPERATOR_ALPHA = "operator_alpha";
     public static final String FIELD_OPERATOR_NUMERIC = "operator_numeric";
+    public static final String FIELD_NETWORK_COUNTRY = "network_country";
+    public static final String KEY_NETWORK_COUNTRY_ISO = "gsm.operator.iso-country";
+    public static final String KEY_SIM_COUNTRY_ISO = "gsm.sim.operator.iso-country";
     public static final String FIELD_SIM_COUNTRY = "sim_country";
     public static final String FIELD_TIMEZONE = "timezone";
     public static final String FIELD_LOCALE = "locale";
@@ -83,7 +86,7 @@ public class ConfigManager {
 
     private static Map<String, String> allProperties = null;
     private static boolean usingEmbeddedDefaults = true;
-    private static boolean assignedProfile = false;
+    private static volatile Map<String, String> assignedProfileProperties;
     private static String targetPackageName = null;
     private static long lastReloadAttemptElapsed = 0L;
 
@@ -107,7 +110,7 @@ public class ConfigManager {
 
     public static synchronized boolean hasAssignedProfile() {
         ensureFreshConfig();
-        return assignedProfile;
+        return assignedProfileProperties != null;
     }
 
     private static void reload(boolean force) {
@@ -127,7 +130,7 @@ public class ConfigManager {
         LoadedProperties loadedProperties = readConfig(context);
         allProperties = loadedProperties.properties;
         usingEmbeddedDefaults = loadedProperties.fromEmbeddedDefaults;
-        assignedProfile = !usingEmbeddedDefaults && !allProperties.isEmpty();
+        assignedProfileProperties = !usingEmbeddedDefaults && !allProperties.isEmpty() ? allProperties : null;
         resetGeneratedCaches();
     }
 
@@ -497,6 +500,20 @@ public class ConfigManager {
         return (value != null) ? value : defaultValue;
     }
 
+    public static String getCountryIso(String key) {
+        // Country hooks can run while the profile is loading. Read the published config without IPC.
+        Map<String, String> properties = assignedProfileProperties;
+        if (properties == null) {
+            return "";
+        }
+        String toggle = properties.get(getTogglePropertyKey(getToggleFieldForSystemProperty(key)));
+        if (toggle != null && !toggle.isEmpty() && !toggle.equals("1") && !toggle.equalsIgnoreCase("true")) {
+            return "";
+        }
+        String value = properties.get(key);
+        return value == null ? "" : value;
+    }
+
     public static Map<String, String> getEffectiveSystemProperties() {
         ensureFreshConfig();
         Map<String, String> result = new LinkedHashMap<>();
@@ -736,7 +753,10 @@ public class ConfigManager {
         if (key.equals("gsm.operator.numeric") || key.equals("gsm.sim.operator.numeric")) {
             return FIELD_OPERATOR_NUMERIC;
         }
-        if (key.equals("gsm.sim.operator.iso-country")) {
+        if (key.equals(KEY_NETWORK_COUNTRY_ISO)) {
+            return FIELD_NETWORK_COUNTRY;
+        }
+        if (key.equals(KEY_SIM_COUNTRY_ISO)) {
             return FIELD_SIM_COUNTRY;
         }
         if (key.equals("persist.sys.timezone")) {

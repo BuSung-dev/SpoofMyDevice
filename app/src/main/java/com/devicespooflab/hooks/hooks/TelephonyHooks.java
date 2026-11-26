@@ -564,34 +564,6 @@ public class TelephonyHooks {
         }
 
         try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSimCountryIso",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String simCountry = ConfigManager.getSystemProperty("gsm.sim.operator.iso-country", null);
-                            if (simCountry != null) {
-                                param.setResult(simCountry);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkCountryIso",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String networkCountry = ConfigManager.getSystemProperty("gsm.operator.iso-country", null);
-                            if (networkCountry != null) {
-                                param.setResult(networkCountry);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
             XposedHelpers.findAndHookMethod(telephonyManager, "getVoiceMailNumber",
                     new XC_MethodHook() {
                         @Override
@@ -898,10 +870,6 @@ public class TelephonyHooks {
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getMnc", TelephonyHooks::parseMnc);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getMccString", TelephonyHooks::parseMccString);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getMncString", TelephonyHooks::parseMncString);
-        hookSubscriptionInfoGetter(subscriptionInfoClass, "getCountryIso", () -> firstNonBlank(
-                ConfigManager.getSystemProperty("gsm.sim.operator.iso-country", null),
-                "us"
-        ));
         hookSubscriptionInfoGetter(subscriptionInfoClass, "isEmbedded", () -> false);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "isOpportunistic", () -> false);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getSubscriptionType", () -> 0);

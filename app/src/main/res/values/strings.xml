@@ -166,6 +166,7 @@
     <string name="settings_field_screen_density">Screen density</string>
     <string name="settings_field_operator_name">Operator name</string>
     <string name="settings_field_operator_numeric">Operator numeric</string>
+    <string name="settings_field_network_country_iso">Network country ISO</string>
     <string name="settings_field_sim_country_iso">SIM country ISO</string>
     <string name="settings_field_timezone">Timezone</string>
     <string name="settings_field_locale">Locale</string>

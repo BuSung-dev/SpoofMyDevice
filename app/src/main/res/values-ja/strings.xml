@@ -165,6 +165,7 @@
     <string name="settings_field_screen_density">画面密度</string>
     <string name="settings_field_operator_name">通信事業者名</string>
     <string name="settings_field_operator_numeric">通信事業者コード</string>
+    <string name="settings_field_network_country_iso">ネットワーク国 ISO</string>
     <string name="settings_field_sim_country_iso">SIM 国 ISO</string>
     <string name="settings_field_timezone">タイムゾーン</string>
     <string name="settings_field_locale">ロケール</string>

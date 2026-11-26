@@ -10,6 +10,7 @@ import android.os.Build;
 import com.devicespooflab.hooks.hooks.AdvertisingIdHooks;
 import com.devicespooflab.hooks.hooks.AppSetIdHooks;
 import com.devicespooflab.hooks.hooks.BuildHooks;
+import com.devicespooflab.hooks.hooks.CountryIsoHooks;
 import com.devicespooflab.hooks.hooks.DisplayHooks;
 import com.devicespooflab.hooks.hooks.EmulatorDetectionHooks;
 import com.devicespooflab.hooks.hooks.GetPropHooks;
@@ -49,6 +50,7 @@ public class MainHook implements IXposedHookLoadPackage {
     private static final String MODULE_PACKAGE = "com.spoofmydevice";
     private static final int REAL_SDK_INT = Build.VERSION.SDK_INT;
     private static final Set<String> INITIALIZED_HOOK_PROCESSES = ConcurrentHashMap.newKeySet();
+    private static final Set<String> COUNTRY_ISO_HOOK_PROCESSES = ConcurrentHashMap.newKeySet();
     private static final Set<String> CONFIG_RECEIVER_PROCESSES = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -65,6 +67,10 @@ public class MainHook implements IXposedHookLoadPackage {
             return;
         }
 
+        String processName = lpparam.processName == null ? lpparam.packageName : lpparam.processName;
+        if (COUNTRY_ISO_HOOK_PROCESSES.add(processName)) {
+            CountryIsoHooks.hook(lpparam.classLoader);
+        }
         hookApplicationAttachForInitialization(lpparam);
 
         try {

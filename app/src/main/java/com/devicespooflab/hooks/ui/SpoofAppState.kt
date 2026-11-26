@@ -578,6 +578,8 @@ class ProfileEditorState {
         selectedPresetId = config.selectedPresetId
         customMode = config.isCustomMode
         loadProfile(config.profile)
+        values[ConfigManager.FIELD_NETWORK_COUNTRY] =
+            config.extraProperties[ConfigManager.KEY_NETWORK_COUNTRY_ISO].orEmpty()
         advancedValues[ConfigManager.FIELD_ANDROID_ID] = config.profile.androidId.orEmpty()
         advancedPropertyKeys.forEach { (fieldId, propertyKey) ->
             advancedValues[fieldId] = config.extraProperties[propertyKey].orEmpty()
@@ -637,6 +639,16 @@ class ProfileEditorState {
 
     fun buildExtraProperties(baseProperties: Map<String, String>): Map<String, String> {
         val result = LinkedHashMap(baseProperties)
+        val networkCountry = value(ConfigManager.FIELD_NETWORK_COUNTRY)
+        val networkCountryKey = ConfigManager.KEY_NETWORK_COUNTRY_ISO
+        if (networkCountry.isEmpty()) {
+            result.remove(networkCountryKey)
+        } else if (networkCountry != baseProperties[networkCountryKey]) {
+            require(networkCountry.matches(Regex("[A-Za-z]{2}"))) {
+                "Network country ISO must be two letters, for example gb."
+            }
+            result[networkCountryKey] = networkCountry.lowercase()
+        }
         advancedPropertyKeys.forEach { (fieldId, key) ->
             val value = advancedValues[fieldId].orEmpty().trim()
             if (value.isEmpty()) result.remove(key) else result[key] = value
@@ -723,6 +735,7 @@ class ProfileEditorState {
             ConfigManager.FIELD_SCREEN_DENSITY,
             ConfigManager.FIELD_OPERATOR_ALPHA,
             ConfigManager.FIELD_OPERATOR_NUMERIC,
+            ConfigManager.FIELD_NETWORK_COUNTRY,
             ConfigManager.FIELD_SIM_COUNTRY,
             ConfigManager.FIELD_TIMEZONE,
             ConfigManager.FIELD_LOCALE,
