@@ -1,6 +1,5 @@
 package com.devicespooflab.hooks.hooks;
 
-import android.os.Build;
 import android.telephony.TelephonyManager;
 
 import com.devicespooflab.hooks.utils.ConfigManager;
@@ -565,43 +564,6 @@ public class TelephonyHooks {
         }
 
         try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSimCountryIso",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String simCountry = ConfigManager.getSystemProperty("gsm.sim.operator.iso-country", null);
-                            if (simCountry != null) {
-                                param.setResult(simCountry);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        XC_MethodHook networkCountryHook = new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                if (param.args.length > 0 && param.hasThrowable()) {
-                    return;
-                }
-                String networkCountry = ConfigManager.getSystemProperty(ConfigManager.KEY_NETWORK_COUNTRY_ISO, null);
-                if (networkCountry != null) {
-                    param.setResult(networkCountry);
-                }
-            }
-        };
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkCountryIso", networkCountryHook);
-        } catch (NoSuchMethodError ignored) {
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkCountryIso", int.class, networkCountryHook);
-            } catch (NoSuchMethodError ignored) {
-            }
-        }
-
-        try {
             XposedHelpers.findAndHookMethod(telephonyManager, "getVoiceMailNumber",
                     new XC_MethodHook() {
                         @Override
@@ -908,10 +870,6 @@ public class TelephonyHooks {
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getMnc", TelephonyHooks::parseMnc);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getMccString", TelephonyHooks::parseMccString);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getMncString", TelephonyHooks::parseMncString);
-        hookSubscriptionInfoGetter(subscriptionInfoClass, "getCountryIso", () -> firstNonBlank(
-                ConfigManager.getSystemProperty("gsm.sim.operator.iso-country", null),
-                "us"
-        ));
         hookSubscriptionInfoGetter(subscriptionInfoClass, "isEmbedded", () -> false);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "isOpportunistic", () -> false);
         hookSubscriptionInfoGetter(subscriptionInfoClass, "getSubscriptionType", () -> 0);
