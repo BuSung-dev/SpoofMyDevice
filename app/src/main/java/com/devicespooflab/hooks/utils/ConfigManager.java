@@ -65,6 +65,8 @@ public class ConfigManager {
     public static final String FIELD_SCREEN_DENSITY = "screen_density";
     public static final String FIELD_OPERATOR_ALPHA = "operator_alpha";
     public static final String FIELD_OPERATOR_NUMERIC = "operator_numeric";
+    public static final String FIELD_NETWORK_COUNTRY = "network_country";
+    public static final String KEY_NETWORK_COUNTRY_ISO = "gsm.operator.iso-country";
     public static final String FIELD_SIM_COUNTRY = "sim_country";
     public static final String FIELD_TIMEZONE = "timezone";
     public static final String FIELD_LOCALE = "locale";
@@ -735,6 +737,9 @@ public class ConfigManager {
         }
         if (key.equals("gsm.operator.numeric") || key.equals("gsm.sim.operator.numeric")) {
             return FIELD_OPERATOR_NUMERIC;
+        }
+        if (key.equals(KEY_NETWORK_COUNTRY_ISO)) {
+            return FIELD_NETWORK_COUNTRY;
         }
         if (key.equals("gsm.sim.operator.iso-country")) {
             return FIELD_SIM_COUNTRY;

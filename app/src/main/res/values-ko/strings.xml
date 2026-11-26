@@ -165,6 +165,7 @@
     <string name="settings_field_screen_density">화면 밀도</string>
     <string name="settings_field_operator_name">통신사 이름</string>
     <string name="settings_field_operator_numeric">통신사 코드</string>
+    <string name="settings_field_network_country_iso">네트워크 국가 ISO</string>
     <string name="settings_field_sim_country_iso">SIM 국가 ISO</string>
     <string name="settings_field_timezone">시간대</string>
     <string name="settings_field_locale">로케일</string>

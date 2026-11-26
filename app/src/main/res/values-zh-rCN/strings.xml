@@ -165,6 +165,7 @@
     <string name="settings_field_screen_density">屏幕密度</string>
     <string name="settings_field_operator_name">运营商名称</string>
     <string name="settings_field_operator_numeric">运营商代码</string>
+    <string name="settings_field_network_country_iso">网络国家 ISO</string>
     <string name="settings_field_sim_country_iso">SIM 国家 ISO</string>
     <string name="settings_field_timezone">时区</string>
     <string name="settings_field_locale">区域设置</string>

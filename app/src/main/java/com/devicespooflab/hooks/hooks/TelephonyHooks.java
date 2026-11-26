@@ -1,5 +1,6 @@
 package com.devicespooflab.hooks.hooks;
 
+import android.os.Build;
 import android.telephony.TelephonyManager;
 
 import com.devicespooflab.hooks.utils.ConfigManager;
@@ -577,18 +578,27 @@ public class TelephonyHooks {
         } catch (NoSuchMethodError ignored) {
         }
 
+        XC_MethodHook networkCountryHook = new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (param.args.length > 0 && param.hasThrowable()) {
+                    return;
+                }
+                String networkCountry = ConfigManager.getSystemProperty(ConfigManager.KEY_NETWORK_COUNTRY_ISO, null);
+                if (networkCountry != null) {
+                    param.setResult(networkCountry);
+                }
+            }
+        };
         try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkCountryIso",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String networkCountry = ConfigManager.getSystemProperty("gsm.operator.iso-country", null);
-                            if (networkCountry != null) {
-                                param.setResult(networkCountry);
-                            }
-                        }
-                    });
+            XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkCountryIso", networkCountryHook);
         } catch (NoSuchMethodError ignored) {
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkCountryIso", int.class, networkCountryHook);
+            } catch (NoSuchMethodError ignored) {
+            }
         }
 
         try {
